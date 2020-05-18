@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,23 +12,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-cd "$DIR/../../.." || exit 1
-
-REPORT_DIR=${OUTPUT_DIR:-"$DIR/../../../target/acceptance"}
-mkdir -p "$REPORT_DIR"
-
-OZONE_VERSION=$(grep "<ozone.version>" "pom.xml" | sed 's/<[^>]*>//g'|  sed 's/^[ \t]*//')
-DIST_DIR="$DIR/../../dist/target/ozone-$OZONE_VERSION"
-
-if [ ! -d "$DIST_DIR" ]; then
-    echo "Distribution dir is missing. Doing a full build"
-    "$DIR/build.sh"
-fi
-
-cd "$DIST_DIR/compose" || exit 1
-./test-all.sh "$@"
-RES=$?
-cp result/* "$REPORT_DIR/"
-cp "$REPORT_DIR/log.html" "$REPORT_DIR/summary.html"
-exit $RES
+name: acceptance-single
+on:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '0 */2 * * *'
+jobs:
+  acceptance:
+    name: acceptance
+    runs-on: ubuntu-18.04
+    steps:
+        - uses: actions/checkout@master
+        - uses: ./.github/buildenv
+          with:
+            args: ./hadoop-ozone/dev-support/checks/build.sh
+        - run: sudo pip install robotframework
+        - run: sudo chown runner -R .
+        - run: cd ./hadoop-ozone/dist/target/ozone-*/ && mkdir .aws && sudo chown 1000 .aws
+        - run: ./hadoop-ozone/dev-support/checks/acceptance.sh ozone-om-ha
+        - uses: actions/upload-artifact@master
+          if: always()
+          with:
+            name: acceptance
+            path: target/acceptance

@@ -14,7 +14,7 @@
 # limitations under the License.
 name: build-branch
 on:
-  - push
+  - pull_request
 jobs:
   build:
     name: compile
