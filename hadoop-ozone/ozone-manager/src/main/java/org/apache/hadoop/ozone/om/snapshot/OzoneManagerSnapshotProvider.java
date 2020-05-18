@@ -194,7 +194,7 @@ public class OzoneManagerSnapshotProvider {
         FileUtil.unTar(targetFile, untarredDbDir.toFile());
         FileUtils.deleteQuietly(targetFile);
 
-        LOG.info("Sucessfully downloaded latest checkpoint with snapshot " +
+        LOG.info("Successfully downloaded latest checkpoint with snapshot " +
             "index {} from leader OM: {}",  snapshotIndex, leaderOMNodeID);
 
         RocksDBCheckpoint omCheckpoint = new RocksDBCheckpoint(untarredDbDir);

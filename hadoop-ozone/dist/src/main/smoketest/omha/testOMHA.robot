@@ -19,7 +19,7 @@ Library             OperatingSystem
 Library             SSHLibrary
 Library             Collections
 Resource            ../commonlib.robot
-Test Timeout        8 minutes
+Test Timeout        30 minutes
 
 *** Variables ***
 ${SECURITY_ENABLED}                 false
@@ -46,6 +46,7 @@ Start OM
                             Open Connection And Log In
     ${rc1} =                Execute Command                 /opt/startOM.sh --restart       return_stdout=False    return_rc=True
                             Should Be Equal As Integers     ${rc1}                  0
+                            Sleep                           10s
     ${startMsg}  ${rc2} =   Execute Command                 sudo ps aux | grep om           return_rc=True
                             Should Be Equal As Integers     ${rc2}                  0
                             Close Connection
@@ -106,14 +107,56 @@ Get Ratis Logs
     [arguments]             ${OM_HOST}
                             Set Global Variable     ${HOST}                 ${OM_HOST}
                             Open Connection And Log In
-    ${groupId}   ${rc} =    Execute Command         ls ${RATIS_DIR} | grep -v 'snapshot'         return_rc=True
+    ${groupId}   ${rc} =    Execute Command         ls -tr ${RATIS_DIR} | grep -v 'snapshot'         return_rc=True
                             Should Be Equal As Integers                     ${rc}                0
                             LOG                     Ratis GroupId: ${groupId}
     ${currDir} =            Catenate                SEPARATOR=              ${RATIS_DIR}    /    ${groupId}    /current/
-    @{logs} =               SSHLibrary.List Files In Directory              ${currDir}           log_*
+    @{logs} =               SSHLibrary.List Files In Directory              ${currDir}           log_[0-9]*
                             Close Connection
-    ${numLogs} =            Get Length                                      ${logs}
-    [return]                ${numLogs}                                      ${logs}
+    [return]                ${logs}
+
+Get Last Log Index
+    [arguments]             ${logs}
+    @{endLogIndices} =      Create List
+    :FOR       ${log}       IN      @{logs}
+    \          ${endIndex} =        Fetch From Right        ${log}          -
+    \          Append To List       ${endLogIndices}        ${endIndex}
+
+    ${listSize} =           Get Length          ${endLogIndices}
+    ${lastLogIndex} =       Run Keyword If      ${listSize} == 0        Set Variable        0       ELSE        Get Max Element From List       ${endLogIndices}
+    [return]                ${lastLogIndex}
+
+Get First Log Index
+    [arguments]             ${logs}
+    @{startLogIndices} =    Create List
+    :FOR       ${log}       IN      @{logs}
+    \          ${indexRange} =      Fetch From Right        ${log}          _
+    \          ${startIndex} =      Fetch From Left         ${indexRange}   -
+    \          Append To List       ${startLogIndices}        ${startIndex}
+
+    ${listSize} =           Get Length          ${startLogIndices}
+    ${firstLogIndex} =      Run Keyword If      ${listSize} == 0        Set Variable        0       ELSE        Get Min Element From List       ${startLogIndices}
+    [return]                ${firstLogIndex}
+
+Get Min Element From List
+    [arguments]             ${list}
+    ${listSize} =           Get Length              ${list}
+    ${min} =                Get From List           ${list}                 0
+    FOR        ${INDEX}     IN RANGE                ${listSize}
+               ${num} =     Get From List           ${list}                 ${INDEX}
+               ${min} =     Run Keyword If          ${num} < ${min}         Set Variable        ${num}     ELSE     Set Variable        ${min}
+    END
+    [return]                ${min}
+
+Get Max Element From List
+    [arguments]             ${list}
+    ${listSize} =           Get Length              ${list}
+    ${max} =                Get From List           ${list}                 0
+    FOR        ${INDEX}     IN RANGE                ${listSize}
+               ${num} =     Get From List           ${list}                 ${INDEX}
+               ${max} =     Run Keyword If          ${num} > ${max}         Set Variable        ${num}     ELSE     Set Variable        ${max}
+    END
+    [return]                ${max}
 
 ** Test Cases ***
 Stop Leader OM and Verify Failover
@@ -123,7 +166,7 @@ Stop Leader OM and Verify Failover
 
     # Find Leader OM and stop it
     ${leaderOM} =           Get OM Leader Node
-    ${stopOMResult} =       Stop OM                 ${leaderOM}
+                            Stop OM                 ${leaderOM}
 
     # Verify that new Leader OM is elected
     ${newLeaderOM} =        Get OM Leader Node
@@ -139,7 +182,7 @@ Test Multiple Failovers
     FOR     ${INDEX}    IN RANGE    5
             # Find Leader OM and stop it
             ${leaderOM} =               Get OM Leader Node
-            ${stopOMResult} =           Stop OM                 ${leaderOM}
+                                        Stop OM                 ${leaderOM}
 
             # Verify that new Leader OM is elected
             ${newLeaderOM} =            Get OM Leader Node
@@ -155,31 +198,82 @@ Test Multiple Failovers
 Restart OM and Verify Ratis Logs
     Set Test Variable       ${OM_HOST}              om2
     Set Test Variable       ${keyBase}              testOMRestart_
+    Set Test Variable       ${keyBaseAfterRestart}  testOMRestart_afterRestart_
 
     # Stop 1 OM and get the Logs present in its Ratis Dir
-                            Stop OM                 ${OM_HOST}
-    ${numLogsBefore}        @{logsBefore} =         Get Ratis Logs          ${OM_HOST}
-    ${leaderOM} =           Get OM Leader Node
+                                    Stop OM                        ${OM_HOST}
+    ${logs}                         Get Ratis Logs                 ${OM_HOST}
+    ${lastLogBeforeShutdown} =      Get Last Log Index             ${logs}
+
+    # Get the current leader OM
+    ${leaderOM} =                   Get OM Leader Node
 
     # Perform write operations to advance the Ratis log index till a new Log segment is created
-    FOR     ${INDEX}    IN RANGE    20
-            Set Test Variable       ${keyPrefix}        ${keyBase}${INDEX}
-            Put Multiple Keys       5                   ${keyPrefix}            ${TEST_FILE}
-            ${numLogsLeader}        @{logsLeader} =     Get Ratis Logs          ${leaderOM}
-            EXIT FOR LOOP IF        ${numLogsLeader} > ${numLogsBefore}
+    # For this we check that the last log index on leader is atleast 10 more than the last log index on follower before shutdown
+    ${nextLogIndex} =               Evaluate                    ${lastLogBeforeShutdown} + 10
+    FOR     ${INDEX}    IN RANGE    50
+            Set Test Variable       ${keyPrefix}                ${keyBase}${INDEX}
+            Put Multiple Keys       5                           ${keyPrefix}            ${TEST_FILE}
+            ${leaderLogs}           Get Ratis Logs              ${leaderOM}
+            ${lastLogIndexLeader}   Get Last Log Index          ${leaderLogs}
+            EXIT FOR LOOP IF        ${lastLogIndexLeader} >= ${nextLogIndex}
     END
-    Should Be True                  ${numLogsLeader} > ${numLogsBefore}         Cannot test OM Restart as Ratis did not start new log segment.
+    Should Be True                  ${lastLogIndexLeader} > ${nextLogIndex}             Cannot test OM Restart as Ratis did not start new log segment.
 
     # Restart the stopped OM and wait for Ratis to catch up with Leader OM
+    # Perform some put key operations to verify that the follower log index advances.
             Start OM                ${OM_HOST}
-    FOR     ${INDEX}    IN RANGE    300
-            ${numLogsAfter}         @{logsAfter} =      Get Ratis Logs          ${OM_HOST}
-            EXIT FOR LOOP IF        ${numLogsAfter} >= ${numLogsLeader}
+    FOR     ${INDEX}    IN RANGE    100
+            Set Test Variable       ${keyPrefix}                ${keyBaseAfterRestart}${INDEX}
+            Put Multiple Keys       5                           ${keyPrefix}            ${TEST_FILE}
+            ${followerLogs}         Get Ratis Logs              ${OM_HOST}
+            ${lastLogAfterRestart}  Get Last Log Index          ${followerLogs}
+            EXIT FOR LOOP IF        ${lastLogAfterRestart} >= ${lastLogIndexLeader}
             Sleep                   1s
     END
-    Should Be True                  ${numLogsAfter} >= ${numLogsLeader}         Restarted OM did not catch up with Leader OM
+    Should Be True                  ${lastLogAfterRestart} >= ${lastLogIndexLeader}     Restarted Follower not participating in Ratis Ring
 
-    # Verify that the logs match with the Leader OMs logs
-    List Should Contain Sub List    ${logsAfter}        ${logsLeader}
+Test Install Ratis Snapshot
+    Set Test Variable       ${OM_HOST}              om2
+    Set Test Variable       ${keyBase1}             testOMInstallSnapshot_1_
+    Set Test Variable       ${keyBase2}             testOMInstallSnapshot_2_
+    Set Test Variable       ${testKeyFinal}         testOMInstallSnapshot_testKeyFinal
 
+    # Stop 1 OM and get the Logs present in its Ratis Dir
+                                    Stop OM                        ${OM_HOST}
+    ${logs}                         Get Ratis Logs                 ${OM_HOST}
+    ${lastLogBeforeShutdown} =      Get Last Log Index             ${logs}
+
+    # Get the current leader OM
+    ${leaderOM} =                   Get OM Leader Node
+
+    # Perform write operations to advance the Ratis log index till previous logs are purged.
+    # To ensure that on restart OM receives a snapshot, we wait till the leader has purged logs upto follower next
+    # index + 10.
+    ${nextLogIndexAfterPurge} =     Evaluate                    ${lastLogBeforeShutdown} + 10
+    Put Multiple Keys               10                          ${keyBase1}             ${TEST_FILE}
+    FOR     ${INDEX}    IN RANGE    100
+            Set Test Variable       ${keyPrefix}                ${keyBase2}${INDEX}
+            Put Multiple Keys       5                           ${keyPrefix}            ${TEST_FILE}
+            ${leaderLogs}           Get Ratis Logs              ${leaderOM}
+            ${firstLogIndex}        Get First Log Index         ${leaderLogs}
+            EXIT FOR LOOP IF        ${firstLogIndex} > ${nextLogIndexAfterPurge}
+    END
+    Should Be True                  ${firstLogIndex} > ${nextLogIndexAfterPurge}        Cannot test OM Install Snapshot as Ratis logs were not purged.
+    ${numLogsLeader}                Get Length                  ${leaderLogs}
+
+    # Restart the stopped OM. It should catch up with Leader OM by installing snapshot from the Leader.
+            Start OM                ${OM_HOST}
+    FOR     ${INDEX}    IN RANGE    100
+            ${followerLogs}         Get Ratis Logs              ${OM_HOST}
+            ${lastLogAfterRestart}  Get Last Log Index          ${followerLogs}
+            EXIT FOR LOOP IF        ${lastLogAfterRestart} > ${lastLogBeforeShutdown}
+            Sleep                   100ms
+    END
+    Should Be True                  ${lastLogAfterRestart} > ${lastLogBeforeShutdown}   Restarted OM did not catch up with Leader OM
+
+    # To test that restarted OM is caught up and participating in the quorum, stop another OM and try a Put Key
+            Stop OM                 om3
+            Put Key                 ${TEST_FILE}                ${testKeyFinal}
+            Start OM                om3
 
