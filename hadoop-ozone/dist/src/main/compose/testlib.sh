@@ -112,6 +112,8 @@ execute_robot_test(){
 
   copy_daemon_logs
 
+  copy_error_report
+
   set -e
 
   if [[ ${rc} -gt 0 ]]; then
@@ -131,6 +133,15 @@ copy_daemon_logs() {
   done
 }
 
+copy_error_report() {
+  local c f
+  for c in $(docker-compose -f "$COMPOSE_FILE" ps | grep "^${COMPOSE_ENV_NAME}_" | awk '{print $1}'); do
+    for f in $(docker exec "${c}" ls -1 /opt | grep -F 'hs_err'); do
+      docker cp "${c}:/opt/${f}" "$RESULT_DIR/"
+    done
+  done
+
+}
 
 ## @description  Execute specific command in docker container
 ## @param        container name
