@@ -137,6 +137,7 @@ copy_error_report() {
   local c f
   for c in $(docker-compose -f "$COMPOSE_FILE" ps | grep "^${COMPOSE_ENV_NAME}_" | awk '{print $1}'); do
     for f in $(docker exec "${c}" ls -1 /opt | grep -F 'hs_err'); do
+      echo "Copying hs_err log file:" $f
       docker cp "${c}:/opt/${f}" "$RESULT_DIR/"
     done
   done
