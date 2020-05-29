@@ -101,6 +101,7 @@ public class PutKeyHandler extends KeyHandler {
     try (InputStream input = new FileInputStream(dataFile);
          OutputStream output = bucket.createKey(keyName, dataFile.length(),
              replicationType, replicationFactor, keyMetadata)) {
+      LOG.info("----- CreateKey successful. CopyBytes to OpenKey");
       IOUtils.copyBytes(input, output, chunkSize);
     }
   }

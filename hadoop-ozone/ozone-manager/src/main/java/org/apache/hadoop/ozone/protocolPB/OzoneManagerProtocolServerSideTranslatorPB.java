@@ -33,6 +33,7 @@ import org.apache.hadoop.ozone.om.ratis.OzoneManagerRatisServer;
 import org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerRatisUtils;
 import org.apache.hadoop.ozone.om.request.OMClientRequest;
 import org.apache.hadoop.ozone.om.response.OMClientResponse;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 
@@ -99,6 +100,18 @@ public class OzoneManagerProtocolServerSideTranslatorPB implements
   @Override
   public OMResponse submitRequest(RpcController controller,
       OMRequest request) throws ServiceException {
+
+    OzoneManagerProtocolProtos.Type cmdType = request.getCmdType();
+    if (cmdType == OzoneManagerProtocolProtos.Type.CreateKey) {
+      LOG.info("----- Received Client Request - CreateKey: {}",
+          request.getCreateKeyRequest().getKeyArgs().getKeyName());
+    } else if (cmdType == OzoneManagerProtocolProtos.Type.CommitKey) {
+      LOG.info("----- Received Client Request - CommitKey: {}",
+          request.getCommitKeyRequest().getKeyArgs().getKeyName());
+    } else if (cmdType == OzoneManagerProtocolProtos.Type.AllocateBlock) {
+      LOG.info("----- Received Client Request - AllocateBlock: {}",
+          request.getAllocateBlockRequest().getKeyArgs().getKeyName());
+    }
 
     return dispatcher.processRequest(request, this::processRequest,
         request.getCmdType(), request.getTraceID());

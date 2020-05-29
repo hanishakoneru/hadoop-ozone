@@ -157,6 +157,7 @@ public final class ScmBlockLocationProtocolServerSideTranslatorPB
   public AllocateScmBlockResponseProto allocateScmBlock(
       AllocateScmBlockRequestProto request)
       throws IOException {
+    LOG.info("----- SCM received AllocateScmBlock request");
     List<AllocatedBlock> allocatedBlocks =
         impl.allocateBlock(request.getSize(),
             request.getNumBlocks(), request.getType(),

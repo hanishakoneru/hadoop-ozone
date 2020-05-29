@@ -48,9 +48,16 @@ LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.conf.ConfUtils=INFO
 LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.security.ShellBasedUnixGroupsMapping=ERROR
 LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.grpc.client.GrpcClientProtocolClient=INFO
 LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.grpc.server.GrpcLogAppender=DEBUG
-LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.server.impl.RaftServerImpl=DEBUG
-LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.server.impl.FollowerInfo=INFO
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.server.impl.RaftServerImpl=TRACE
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.server.impl.FollowerInfo=DEBUG
 LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.io.retry.RetryInvocationHandler=WARN
+LOG4J.PROPERTIES_log4j.logger.org.apache.hadoop.ozone.om.ratis.OzoneManagerStateMachine=DEBUG
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.statemachine.impl=TRACE
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.statemachine.impl.BaseStateMachine=TRACE
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.server.raftlog.segmented.SegmentedRaftLog=TRACE
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.server.raftlog.segmented=DEBUG
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.server.raftlog.RaftLog=TRACE
+LOG4J.PROPERTIES_log4j.logger.org.apache.ratis.server.impl.StateMachineUpdater=DEBUG
 
 #Enable this variable to print out all hadoop rpc traffic to the stdout. See http://byteman.jboss.org/ to define your own instrumentation.
 #BYTEMAN_SCRIPT_URL=https://raw.githubusercontent.com/apache/hadoop/trunk/dev-support/byteman/hadooprpc.btm

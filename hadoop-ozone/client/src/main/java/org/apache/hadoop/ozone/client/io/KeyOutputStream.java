@@ -186,6 +186,7 @@ public class KeyOutputStream extends OutputStream {
   @Override
   public void write(byte[] b, int off, int len)
       throws IOException {
+    LOG.info("----- KeyOutputStream write");
     checkNotClosed();
     if (b == null) {
       throw new NullPointerException();
@@ -502,6 +503,7 @@ public class KeyOutputStream extends OutputStream {
    */
   @Override
   public void close() throws IOException {
+    LOG.info("----- KeyOutputStream close");
     if (closed) {
       return;
     }
@@ -511,6 +513,7 @@ public class KeyOutputStream extends OutputStream {
       if (!isException) {
         Preconditions.checkArgument(writeOffset == offset);
       }
+      LOG.info("----- KeyOutputStream commitKey");
       blockOutputStreamEntryPool.commitKey(offset);
     } finally {
       blockOutputStreamEntryPool.cleanup();

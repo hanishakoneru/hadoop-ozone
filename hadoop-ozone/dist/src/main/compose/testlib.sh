@@ -128,7 +128,12 @@ copy_daemon_logs() {
   local c f
   for c in $(docker-compose -f "$COMPOSE_FILE" ps | grep "^${COMPOSE_ENV_NAME}_" | awk '{print $1}'); do
     for f in $(docker exec "${c}" ls -1 /var/log/hadoop | grep -F '.out'); do
+      echo "Copying out file:" ${f}
       docker cp "${c}:/var/log/hadoop/${f}" "$RESULT_DIR/"
+    done
+    for f in $(docker exec "${c}" ls -1 /var/log/hadoop | grep -F 'ozone-shell.log'); do
+      echo "Copying ozone shell log:" ${f} "from:" ${c}
+      docker cp "${c}:/var/log/hadoop/${f}" "$RESULT_DIR/${c}-ozone-shell.log"
     done
   done
 }
@@ -137,7 +142,7 @@ copy_error_report() {
   local c f
   for c in $(docker-compose -f "$COMPOSE_FILE" ps | grep "^${COMPOSE_ENV_NAME}_" | awk '{print $1}'); do
     for f in $(docker exec "${c}" ls -1 /opt | grep -F 'hs_err'); do
-      echo "Copying hs_err log file:" $f
+      echo "Copying hs_err log file:" ${f}
       docker cp "${c}:/opt/${f}" "$RESULT_DIR/"
     done
   done

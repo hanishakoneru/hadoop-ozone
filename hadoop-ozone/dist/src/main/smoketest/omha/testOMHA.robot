@@ -235,8 +235,8 @@ Restart OM and Verify Ratis Logs
 
 Test Install Ratis Snapshot
     Set Test Variable       ${OM_HOST}              om2
-    Set Test Variable       ${keyBase1}             testOMInstallSnapshot_1_
-    Set Test Variable       ${keyBase2}             testOMInstallSnapshot_2_
+    Set Test Variable       ${keyBase1}             testOMInstallSnapshot_1
+    Set Test Variable       ${keyBase2}             testOMInstallSnapshot_2
     Set Test Variable       ${testKeyFinal}         testOMInstallSnapshot_testKeyFinal
 
     # Stop 1 OM and get the Logs present in its Ratis Dir
@@ -251,7 +251,7 @@ Test Install Ratis Snapshot
     # To ensure that on restart OM receives a snapshot, we wait till the leader has purged logs upto follower next
     # index + 10.
     ${nextLogIndexAfterPurge} =     Evaluate                    ${lastLogBeforeShutdown} + 10
-    Put Multiple Keys               10                          ${keyBase1}             ${TEST_FILE}
+    Put Multiple Keys               5                           ${keyBase1}             ${TEST_FILE}
     FOR     ${INDEX}    IN RANGE    100
             Set Test Variable       ${keyPrefix}                ${keyBase2}${INDEX}
             Put Multiple Keys       5                           ${keyPrefix}            ${TEST_FILE}

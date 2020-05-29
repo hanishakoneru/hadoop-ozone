@@ -104,6 +104,8 @@ public class OMKeyCommitRequest extends OMKeyRequest {
     String bucketName = commitKeyArgs.getBucketName();
     String keyName = commitKeyArgs.getKeyName();
 
+    LOG.info("----- OM-SM KeyCommit request {}, keyName: {}", trxnLogIndex, keyName);
+
     OMMetrics omMetrics = ozoneManager.getMetrics();
     omMetrics.incNumKeyCommits();
 
@@ -196,6 +198,9 @@ public class OMKeyCommitRequest extends OMKeyRequest {
 
       omClientResponse = new OMKeyCommitResponse(omResponse.build(),
           omKeyInfo, dbOzoneKey, dbOpenKey);
+
+      LOG.info("----- OM-SM KeyCommit request {} success, keyName: {}", trxnLogIndex,
+          keyName);
 
       result = Result.SUCCESS;
     } catch (IOException ex) {

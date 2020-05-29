@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.ozone.om.OzoneManager;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.om.helpers.OMRatisHelper;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
     .OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
@@ -144,7 +145,7 @@ public class OzoneManagerStateMachine extends BaseStateMachine {
   /**
    * Called to notify state machine about indexes which are processed
    * internally by Raft Server, this currently happens when conf entries are
-   * processed in raft Server. This keep state machine to keep a track of index
+   * processed in raft Server. This helps state machine to keep track of index
    * updates.
    * @param currentTerm term of the current log entry
    * @param index index which is being updated
@@ -162,6 +163,7 @@ public class OzoneManagerStateMachine extends BaseStateMachine {
     // placeHolderIndex (when a node becomes leader, it writes a conf entry
     // with some information like its peers and termIndex). So, calling
     // updateLastApplied updates lastAppliedTermIndex.
+    LOG.debug("NotifyIndexUpdate: term: {}, index:{}", currentTerm, index);
     computeAndUpdateLastAppliedIndex(index, currentTerm, null, false);
     snapshotInfo.updateTerm(currentTerm);
   }
@@ -204,6 +206,19 @@ public class OzoneManagerStateMachine extends BaseStateMachine {
       OMRequest request = OMRatisHelper.convertByteStringToOMRequest(
           trx.getStateMachineLogEntry().getLogData());
       long trxLogIndex = trx.getLogEntry().getIndex();
+      OzoneManagerProtocolProtos.Type cmdType = request.getCmdType();
+      if (cmdType == OzoneManagerProtocolProtos.Type.CreateKey) {
+        LOG.info("----- OM-SM applyTransaction {}, Client Request: {}, " +
+                "CreateKey: {}", trxLogIndex, cmdType,
+            request.getCreateKeyRequest().getKeyArgs().getKeyName());
+      } else if (cmdType == OzoneManagerProtocolProtos.Type.CommitKey) {
+        LOG.info("----- OM-SM applyTransaction {}, Client Request: {}, " +
+                "CommitKey: {}", trxLogIndex, cmdType,
+            request.getCommitKeyRequest().getKeyArgs().getKeyName());
+      } else {
+        LOG.info("----- OM-SM applyTransaction {}, Client Request: {}",
+            trxLogIndex, cmdType);
+      }
       // In the current approach we have one single global thread executor.
       // with single thread. Right now this is being done for correctness, as
       // applyTransaction will be run on multiple OM's we want to execute the
@@ -310,6 +325,7 @@ public class OzoneManagerStateMachine extends BaseStateMachine {
 
   @Override
   public void pause() {
+    LOG.info("Pausing OzoneManager StateMachine");
     getLifeCycle().transition(LifeCycle.State.PAUSING);
     getLifeCycle().transition(LifeCycle.State.PAUSED);
     ozoneManagerDoubleBuffer.stop();
@@ -322,6 +338,7 @@ public class OzoneManagerStateMachine extends BaseStateMachine {
    */
   public void unpause(long newLastAppliedSnaphsotIndex,
       long newLastAppliedSnapShotTermIndex) {
+    LOG.info("Unpausing OzoneManager StateMachine");
     getLifeCycle().startAndTransition(() -> {
       this.ozoneManagerDoubleBuffer =
           new OzoneManagerDoubleBuffer.Builder()
@@ -510,7 +527,7 @@ public class OzoneManagerStateMachine extends BaseStateMachine {
     // nextIndex (placeHolderIndex).
     setLastAppliedTermIndex(TermIndex.newTermIndex(snapshotInfo.getTerm(),
         snapshotInfo.getIndex()));
-    LOG.info("LastAppliedIndex set from SnapShotInfo {}",
+    LOG.info("LastAppliedIndex set from SnapshotInfo {}",
         getLastAppliedTermIndex());
   }
 

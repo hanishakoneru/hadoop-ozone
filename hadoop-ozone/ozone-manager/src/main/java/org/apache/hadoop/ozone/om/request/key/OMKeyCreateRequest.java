@@ -162,6 +162,8 @@ public class OMKeyCreateRequest extends OMKeyRequest {
     String bucketName = keyArgs.getBucketName();
     String keyName = keyArgs.getKeyName();
 
+    LOG.info("----- OM-SM KeyCreate request {}, keyName: {}", trxnLogIndex, keyName);
+
     OMMetrics omMetrics = ozoneManager.getMetrics();
     omMetrics.incNumKeyAllocates();
 
@@ -242,6 +244,9 @@ public class OMKeyCreateRequest extends OMKeyRequest {
           .setCmdType(Type.CreateKey);
       omClientResponse = new OMKeyCreateResponse(omResponse.build(),
           omKeyInfo, null, clientID);
+
+      LOG.info("----- OM-SM KeyCreate request {} success, keyName: {}", trxnLogIndex,
+          keyName);
 
       result = Result.SUCCESS;
     } catch (IOException ex) {

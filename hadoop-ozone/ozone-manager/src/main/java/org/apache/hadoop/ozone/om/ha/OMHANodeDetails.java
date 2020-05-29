@@ -204,7 +204,7 @@ public class OMHANodeDetails {
       int ratisPort = conf.getInt(OZONE_OM_RATIS_PORT_KEY,
           OZONE_OM_RATIS_PORT_DEFAULT);
 
-      LOG.info("Configuration either no {} set. Falling back to the default " +
+      LOG.info("Configuration has no {} key set. Falling back to the default " +
           "OM address {}", OZONE_OM_ADDRESS_KEY, omAddress);
 
       return new OMHANodeDetails(getOMNodeDetails(conf, null,

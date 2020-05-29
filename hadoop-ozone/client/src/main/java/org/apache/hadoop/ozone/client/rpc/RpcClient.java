@@ -1160,6 +1160,8 @@ public class RpcClient implements ClientProtocol {
   private OzoneOutputStream createOutputStream(OpenKeySession openKey,
       String requestId, ReplicationType type, ReplicationFactor factor)
       throws IOException {
+    LOG.info("----- RpcClient create KeyOutputStream for openKey: {}",
+        openKey.getKeyInfo().getKeyName());
     KeyOutputStream keyOutputStream =
         new KeyOutputStream.Builder()
             .setHandler(openKey)
@@ -1182,6 +1184,8 @@ public class RpcClient implements ClientProtocol {
     keyOutputStream
         .addPreallocateBlocks(openKey.getKeyInfo().getLatestVersionLocations(),
             openKey.getOpenVersion());
+    LOG.info("----- RpcClient added preAllocatedBlocks for openKey: {}",
+        openKey.getKeyInfo().getKeyName());
     final FileEncryptionInfo feInfo = keyOutputStream.getFileEncryptionInfo();
     if (feInfo != null) {
       KeyProvider.KeyVersion decrypted = getDEK(feInfo);

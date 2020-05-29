@@ -99,6 +99,8 @@ public class OMAllocateBlockRequest extends OMKeyRequest {
     //  BlockOutputStreamEntryPool, so we are fine for now. But if one some
     //  one uses direct omclient we might be in trouble.
 
+    LOG.info("----- Allocating Block for key: {}, excludeList: {}",
+        keyArgs.getKeyName(), excludeList);
 
     // To allocate atleast one block passing requested size and scmBlockSize
     // as same value. When allocating block requested size is same as
@@ -143,6 +145,9 @@ public class OMAllocateBlockRequest extends OMKeyRequest {
 
     OzoneManagerProtocolProtos.KeyArgs keyArgs =
         allocateBlockRequest.getKeyArgs();
+
+    LOG.info("----- OM-SM AllocateBlock request {}, keyName: {}", trxnLogIndex,
+        keyArgs.getKeyName());
 
     OzoneManagerProtocolProtos.KeyLocation blockLocation =
         allocateBlockRequest.getKeyLocation();
@@ -229,6 +234,10 @@ public class OMAllocateBlockRequest extends OMKeyRequest {
           .setKeyLocation(blockLocation).build());
       omClientResponse = new OMAllocateBlockResponse(omResponse.build(),
           openKeyInfo, clientID);
+
+      LOG.info("----- OM-SM AllocateBlock request {} success, OpenKeyName: {}",
+          trxnLogIndex, openKeyName);
+
       result = Result.SUCCESS;
 
       LOG.debug("Allocated block for Volume:{}, Bucket:{}, OpenKey:{}",

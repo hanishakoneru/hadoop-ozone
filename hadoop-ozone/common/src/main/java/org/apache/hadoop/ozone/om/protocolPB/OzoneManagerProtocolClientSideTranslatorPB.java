@@ -414,8 +414,40 @@ public final class OzoneManagerProtocolClientSideTranslatorPB
           .setTraceID(TracingUtil.exportCurrentSpan())
           .build();
 
+      Type cmdType = omRequest.getCmdType();
+      if (cmdType == Type.CreateKey) {
+        FAILOVER_PROXY_PROVIDER_LOG.info("----- Received Client Request - " +
+                "CreateKey: {}",
+            omRequest.getCreateKeyRequest().getKeyArgs().getKeyName());
+      } else if (cmdType == Type.CommitKey) {
+        FAILOVER_PROXY_PROVIDER_LOG.info("----- Received Client Request - " +
+                "CommitKey: {}",
+            omRequest.getCommitKeyRequest().getKeyArgs().getKeyName());
+      } else if (cmdType == Type.AllocateBlock) {
+        FAILOVER_PROXY_PROVIDER_LOG.info("----- Received Client Request - " +
+                "AllocateBlock: {}",
+            omRequest.getAllocateBlockRequest().getKeyArgs().getKeyName());
+      }
+
       OMResponse omResponse =
           rpcProxy.submitRequest(NULL_RPC_CONTROLLER, payload);
+
+      if (cmdType == Type.CreateKey) {
+        FAILOVER_PROXY_PROVIDER_LOG.info("----- Received OM Response - " +
+                "CreateKey: {}, status: {}",
+            omRequest.getCreateKeyRequest().getKeyArgs().getKeyName(),
+            omResponse.getStatus());
+      } else if (cmdType == Type.CommitKey) {
+        FAILOVER_PROXY_PROVIDER_LOG.info("----- Received OM Response - " +
+                "CommitKey: {}, status: {}",
+            omRequest.getCommitKeyRequest().getKeyArgs().getKeyName(),
+            omResponse.getStatus());
+      } else if (cmdType == Type.AllocateBlock) {
+        FAILOVER_PROXY_PROVIDER_LOG.info("----- Received OM Response - " +
+                "AllocateBlock: {}, status: {}",
+            omRequest.getAllocateBlockRequest().getKeyArgs().getKeyName(),
+            omResponse.getStatus());
+      }
 
       if (omResponse.hasLeaderOMNodeId() && omFailoverProxyProvider != null) {
         String leaderOmId = omResponse.getLeaderOMNodeId();
