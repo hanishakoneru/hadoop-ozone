@@ -227,6 +227,7 @@ public class KeyOutputStream extends OutputStream {
         len -= writtenLength;
         off += writtenLength;
       } catch (Exception e) {
+        LOG.error("----- KeyOutputStream marked closed", e);
         markStreamClosed();
         throw new IOException(e);
       }
@@ -455,6 +456,8 @@ public class KeyOutputStream extends OutputStream {
               blockOutputStreamEntryPool.getCurrentStreamEntry();
           if (entry != null) {
             try {
+              LOG.info("----- KeyOutputStream handleClose handleStreamAction " +
+                  "op: {}", op);
               handleStreamAction(entry, op);
             } catch (IOException ioe) {
               handleException(entry, ioe);
@@ -463,6 +466,7 @@ public class KeyOutputStream extends OutputStream {
           }
           return;
         } catch (Exception e) {
+          LOG.error("----- KeyOutputStream marked closed", e);
           markStreamClosed();
           throw e;
         }
@@ -476,11 +480,14 @@ public class KeyOutputStream extends OutputStream {
     // failed servers can be null in case there is no data written in
     // the stream
     if (!failedServers.isEmpty()) {
+      LOG.info("----- KeyOutputStream handleStreamAction " +
+          "failedServers: {}", failedServers);
       blockOutputStreamEntryPool.getExcludeList().addDatanodes(
           failedServers);
     }
     switch (op) {
     case CLOSE:
+      LOG.info("----- KeyOutputStream handleStreamAction Close, entry: {}", entry);
       entry.close();
       break;
     case FULL:
@@ -503,13 +510,14 @@ public class KeyOutputStream extends OutputStream {
    */
   @Override
   public void close() throws IOException {
-    LOG.info("----- KeyOutputStream close");
+    LOG.info("----- KeyOutputStream close, closed: {}", closed);
     if (closed) {
       return;
     }
     closed = true;
     try {
       handleFlushOrClose(StreamAction.CLOSE);
+      LOG.info("----- KeyOutputStream handleFlushOrClose success");
       if (!isException) {
         Preconditions.checkArgument(writeOffset == offset);
       }
