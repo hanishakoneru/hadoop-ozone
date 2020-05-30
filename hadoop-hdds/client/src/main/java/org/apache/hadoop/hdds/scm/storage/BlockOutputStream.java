@@ -505,13 +505,18 @@ public class BlockOutputStream extends OutputStream {
     if (xceiverClientManager != null && xceiverClient != null
         && bufferPool != null && bufferPool.getSize() > 0) {
       try {
+        LOG.info("----- BlockOutputStream close");
         handleFlush(true);
+        LOG.info("----- BlockOutputStream close flush done");
       } catch (InterruptedException | ExecutionException e) {
+        LOG.info("----- BlockOutputStream close exception", e);
         setIoException(e);
         adjustBuffersOnException();
         throw getIoException();
       } finally {
+        LOG.info("----- BlockOutputStream close cleanup");
         cleanup(false);
+        LOG.info("----- BlockOutputStream close cleanup done");
       }
       // TODO: Turn the below buffer empty check on when Standalone pipeline
       // is removed in the write path in tests
