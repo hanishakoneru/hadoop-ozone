@@ -429,7 +429,7 @@ public class BlockOutputStream extends OutputStream {
       });
     } catch (IOException | InterruptedException | ExecutionException e) {
       throw new IOException(
-          "Unexpected Storage Container Exception: " + e.toString(), e);
+          "Unexpected Storage Container Exception1: " + e.toString(), e);
     }
     commitWatcher.getFutureMap().put(flushPos, flushFuture);
     return flushFuture;
@@ -477,6 +477,7 @@ public class BlockOutputStream extends OutputStream {
     if (totalDataFlushedLength < writtenDataLength) {
       final ChunkBuffer currentBuffer = bufferPool.getCurrentBuffer();
       Preconditions.checkArgument(currentBuffer.position() > 0);
+      LOG.info("----- BlockOutputStream handleFlush writeChunk - {}", this);
       if (currentBuffer.hasRemaining()) {
         writeChunk(currentBuffer);
       }
@@ -484,13 +485,19 @@ public class BlockOutputStream extends OutputStream {
       // here, we just limit this buffer to the current position. So that next
       // write will happen in new buffer
       updateFlushLength();
+      LOG.info("----- BlockOutputStream handleFlush executePutBlock1 - {}",
+          this);
       executePutBlock(close, false);
     } else if (close) {
       // forcing an "empty" putBlock if stream is being closed without new
       // data since latest flush - we need to send the "EOF" flag
+      LOG.info("----- BlockOutputStream handleFlush executePutBlock2 - {}",
+          this);
       executePutBlock(true, true);
     }
+    LOG.info("----- BlockOutputStream handleFlush waitOnFlushFutures - {}", this);
     waitOnFlushFutures();
+    LOG.info("----- BlockOutputStream handleFlush watchForCommit - {}", this);
     watchForCommit(false);
     // just check again if the exception is hit while waiting for the
     // futures to ensure flush has indeed succeeded
@@ -505,18 +512,18 @@ public class BlockOutputStream extends OutputStream {
     if (xceiverClientManager != null && xceiverClient != null
         && bufferPool != null && bufferPool.getSize() > 0) {
       try {
-        LOG.info("----- BlockOutputStream close");
+        LOG.info("----- BlockOutputStream close - {}", this);
         handleFlush(true);
-        LOG.info("----- BlockOutputStream close flush done");
+        LOG.info("----- BlockOutputStream close flush done - {}", this);
       } catch (InterruptedException | ExecutionException e) {
-        LOG.info("----- BlockOutputStream close exception", e);
+        LOG.info("----- BlockOutputStream close exception - {}", this, e);
         setIoException(e);
         adjustBuffersOnException();
         throw getIoException();
       } finally {
-        LOG.info("----- BlockOutputStream close cleanup");
+        LOG.info("----- BlockOutputStream close cleanup - {}", this);
         cleanup(false);
-        LOG.info("----- BlockOutputStream close cleanup done");
+        LOG.info("----- BlockOutputStream close cleanup done - {}", this);
       }
       // TODO: Turn the below buffer empty check on when Standalone pipeline
       // is removed in the write path in tests
@@ -558,7 +565,7 @@ public class BlockOutputStream extends OutputStream {
     IOException ioe = getIoException();
     if (ioe == null) {
       IOException exception =  new IOException(
-          "Unexpected Storage Container Exception: " + e.toString(), e);
+          "Unexpected Storage Container Exception2: " + e.toString(), e);
       ioException.compareAndSet(null, exception);
     } else {
       LOG.debug("Previous request had already failed with " + ioe.toString()
@@ -650,7 +657,7 @@ public class BlockOutputStream extends OutputStream {
       });
     } catch (IOException | InterruptedException | ExecutionException e) {
       throw new IOException(
-          "Unexpected Storage Container Exception: " + e.toString(), e);
+          "Unexpected Storage Container Exception3: " + e.toString(), e);
     }
     containerBlockData.addChunks(chunkInfo);
   }
