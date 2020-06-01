@@ -14,11 +14,11 @@
 # limitations under the License.
 name: acceptance-single
 on:
-  push:
-    branches:
-      - master
-  schedule:
-    - cron: '0 */1 * * *'
+#  push:
+#    branches:
+#      - master
+#  schedule:
+#    - cron: '0 */1 * * *'
 jobs:
   acceptance:
     name: acceptance
