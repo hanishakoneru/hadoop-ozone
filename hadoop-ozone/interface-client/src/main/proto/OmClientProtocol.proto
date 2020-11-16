@@ -1203,6 +1203,32 @@ message UpdateGetS3SecretRequest {
     required string awsSecret = 2;
 }
 
+message OMNodeInfo {
+    required string nodeId = 1;
+    required string hostAddress = 2;
+    required uint32 rpcPort = 3;
+    required uint32 ratisPort = 4;
+    required string httpAddr = 5;
+    required string httpsAddr = 6;
+    optional string serviceId = 7;
+}
+
+enum BootstrapErrorCode {
+    RATIS_NOT_ENABLED = 1;
+    LEADER_UNDETERMINED = 2;
+    RATIS_BOOTSTRAP_ERROR = 3;
+}
+
+message BootstrapRequest {
+    repeated OMNodeInfo omNodeInfos = 1;
+}
+
+message BootstrapResponse {
+    required bool success = 1;
+    optional BootstrapErrorCode errorCode = 2;
+    optional string errorMsg = 3;
+}
+
 /**
  The OM service that takes care of Ozone namespace.
 */
@@ -1210,4 +1236,8 @@ service OzoneManagerService {
     // A client-to-OM RPC to send client requests to OM Ratis server
     rpc submitRequest(OMRequest)
           returns(OMResponse);
+
+    // A admin requested RPC to bootstrap new OMs
+    rpc bootstrap(BootstrapRequest)
+          returns(BootstrapResponse);
 }

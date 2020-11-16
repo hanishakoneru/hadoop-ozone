@@ -33,6 +33,8 @@ import org.apache.hadoop.ozone.om.ha.OMFailoverProxyProvider;
 import org.apache.hadoop.ozone.om.ha.OMProxyInfo;
 import org.apache.hadoop.ozone.om.protocolPB.OzoneManagerProtocolPB;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapRequest;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.test.GenericTestUtils;
@@ -107,6 +109,12 @@ public class TestOMFailovers {
         OzoneManagerProtocolProtos.OMRequest request) throws ServiceException {
       throw new ServiceException("ServiceException of type " +
           exception.getClass() + " for "+ omNodeId, exception);
+    }
+
+    @Override
+    public BootstrapResponse bootstrap(RpcController controller,
+        BootstrapRequest request) throws ServiceException {
+      return null;
     }
   }
 

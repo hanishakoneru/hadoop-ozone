@@ -48,6 +48,7 @@ import org.apache.hadoop.ozone.om.helpers.S3SecretValue;
 import org.apache.hadoop.ozone.om.helpers.ServiceInfo;
 import org.apache.hadoop.ozone.om.helpers.ServiceInfoEx;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMNodeInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OzoneAclInfo;
 import org.apache.hadoop.ozone.security.OzoneDelegationTokenSelector;
 import org.apache.hadoop.ozone.security.acl.OzoneObj;
@@ -68,6 +69,18 @@ public interface OzoneManagerProtocol
    * Version 1: Initial version.
    */
   long versionID = 1L;
+
+  /**
+   * Returns list of Ozone services with its configuration details.
+   *
+   * @return list of Ozone services
+   * @throws IOException
+   */
+  List<ServiceInfo> getServiceList() throws IOException;
+
+  ServiceInfoEx getServiceInfo() throws IOException;
+
+  boolean bootstrap(List<OMNodeInfo> omNodeInfos) throws IOException;
 
   /**
    * Creates a volume.
@@ -301,16 +314,6 @@ public interface OzoneManagerProtocol
   List<OmKeyInfo> listKeys(String volumeName,
       String bucketName, String startKeyName, String keyPrefix, int maxKeys)
       throws IOException;
-
-  /**
-   * Returns list of Ozone services with its configuration details.
-   *
-   * @return list of Ozone services
-   * @throws IOException
-   */
-  List<ServiceInfo> getServiceList() throws IOException;
-
-  ServiceInfoEx getServiceInfo() throws IOException;
 
   /*
    * S3 Specific functionality that is supported by Ozone Manager.

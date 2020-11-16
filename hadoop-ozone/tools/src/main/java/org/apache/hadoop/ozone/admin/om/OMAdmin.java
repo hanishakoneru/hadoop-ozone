@@ -50,7 +50,8 @@ import picocli.CommandLine.Spec;
     mixinStandardHelpOptions = true,
     versionProvider = HddsVersionProvider.class,
     subcommands = {
-        GetServiceRolesSubcommand.class
+        GetServiceRolesSubcommand.class,
+        AddOMSubcommand.class
     })
 @MetaInfServices(SubcommandWithParent.class)
 public class OMAdmin extends GenericCli implements SubcommandWithParent {

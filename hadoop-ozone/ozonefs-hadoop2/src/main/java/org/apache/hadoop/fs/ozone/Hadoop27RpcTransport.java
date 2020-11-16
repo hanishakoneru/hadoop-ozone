@@ -30,6 +30,8 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.om.protocolPB.OmTransport;
 import org.apache.hadoop.ozone.om.protocolPB.OzoneManagerProtocolPB;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapRequest;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -68,6 +70,16 @@ public class Hadoop27RpcTransport implements OmTransport {
       return proxy.submitRequest(NULL_RPC_CONTROLLER, payload);
     } catch (ServiceException e) {
       throw new IOException("Service exception during the OM call", e);
+    }
+  }
+
+  @Override
+  public BootstrapResponse bootstrapRequest(BootstrapRequest bootstrapRequest)
+      throws IOException {
+    try {
+      return proxy.bootstrap(NULL_RPC_CONTROLLER, bootstrapRequest);
+    } catch (ServiceException e) {
+      throw new IOException("Service exception during the bootstrap", e);
     }
   }
 

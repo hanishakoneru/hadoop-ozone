@@ -59,6 +59,8 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.AddAclR
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.AddAclResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.AllocateBlockRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.AllocateBlockResponse;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapRequest;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BucketArgs;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BucketInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.CancelDelegationTokenResponseProto;
@@ -115,6 +117,7 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.Multipa
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.MultipartUploadCompleteResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.MultipartUploadListPartsRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.MultipartUploadListPartsResponse;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMNodeInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OzoneAclInfo;
@@ -190,6 +193,51 @@ public final class OzoneManagerProtocolClientSideTranslatorPB
   public void close() throws IOException {
     //transport is not reusable
     transport.close();
+  }
+
+
+  public List<ServiceInfo> getServiceList() throws IOException {
+    ServiceListRequest req = ServiceListRequest.newBuilder().build();
+
+    OMRequest omRequest = createOMRequest(Type.ServiceList)
+        .setServiceListRequest(req)
+        .build();
+
+    final ServiceListResponse resp = handleError(submitRequest(omRequest))
+        .getServiceListResponse();
+
+    return resp.getServiceInfoList().stream()
+        .map(ServiceInfo::getFromProtobuf)
+        .collect(Collectors.toList());
+
+  }
+
+  @Override
+  public ServiceInfoEx getServiceInfo() throws IOException {
+    ServiceListRequest req = ServiceListRequest.newBuilder().build();
+
+    OMRequest omRequest = createOMRequest(Type.ServiceList)
+        .setServiceListRequest(req)
+        .build();
+
+    final ServiceListResponse resp = handleError(submitRequest(omRequest))
+        .getServiceListResponse();
+
+    return new ServiceInfoEx(
+        resp.getServiceInfoList().stream()
+            .map(ServiceInfo::getFromProtobuf)
+            .collect(Collectors.toList()),
+        resp.getCaCertificate());
+  }
+
+  @Override
+  public boolean bootstrap(List<OMNodeInfo> omNodeInfos) throws IOException {
+    BootstrapRequest bootstrapRequest = BootstrapRequest.newBuilder()
+        .addAllOmNodeInfos(omNodeInfos)
+        .build();
+    BootstrapResponse bootstrapResponse =
+        transport.bootstrapRequest(bootstrapRequest);
+    return bootstrapResponse.getSuccess();
   }
 
   /**
@@ -1037,40 +1085,6 @@ public final class OzoneManagerProtocolClientSideTranslatorPB
     OmMultipartUploadList response = new OmMultipartUploadList(uploadList);
 
     return response;
-  }
-
-  public List<ServiceInfo> getServiceList() throws IOException {
-    ServiceListRequest req = ServiceListRequest.newBuilder().build();
-
-    OMRequest omRequest = createOMRequest(Type.ServiceList)
-        .setServiceListRequest(req)
-        .build();
-
-    final ServiceListResponse resp = handleError(submitRequest(omRequest))
-        .getServiceListResponse();
-
-    return resp.getServiceInfoList().stream()
-          .map(ServiceInfo::getFromProtobuf)
-          .collect(Collectors.toList());
-
-  }
-
-  @Override
-  public ServiceInfoEx getServiceInfo() throws IOException {
-    ServiceListRequest req = ServiceListRequest.newBuilder().build();
-
-    OMRequest omRequest = createOMRequest(Type.ServiceList)
-        .setServiceListRequest(req)
-        .build();
-
-    final ServiceListResponse resp = handleError(submitRequest(omRequest))
-        .getServiceListResponse();
-
-    return new ServiceInfoEx(
-        resp.getServiceInfoList().stream()
-            .map(ServiceInfo::getFromProtobuf)
-            .collect(Collectors.toList()),
-        resp.getCaCertificate());
   }
 
   /**

@@ -37,4 +37,8 @@ public class OzoneIllegalArgumentException extends IllegalArgumentException {
   public OzoneIllegalArgumentException(final String message) {
     super(message);
   }
+
+  public OzoneIllegalArgumentException(final String message, Exception e) {
+    super(message, e);
+  }
 }

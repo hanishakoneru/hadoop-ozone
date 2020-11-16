@@ -29,6 +29,8 @@ import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ozone.OzoneConfigKeys;
 import org.apache.hadoop.ozone.om.exceptions.OMNotLeaderException;
 import org.apache.hadoop.ozone.om.ha.OMFailoverProxyProvider;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapRequest;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -87,6 +89,23 @@ public class Hadoop3OmTransport implements OmTransport {
         omFailoverProxyProvider.performFailoverIfRequired(leaderOmId);
       }
       return omResponse;
+    } catch (ServiceException e) {
+      OMNotLeaderException notLeaderException =
+          OMFailoverProxyProvider.getNotLeaderException(e);
+      if (notLeaderException == null) {
+        throw ProtobufHelper.getRemoteException(e);
+      }
+      throw new IOException("Could not determine or connect to OM Leader.");
+    }
+  }
+
+  @Override
+  public BootstrapResponse bootstrapRequest(BootstrapRequest bootstrapRequest)
+      throws IOException {
+    try {
+      BootstrapResponse response = rpcProxy.bootstrap(NULL_RPC_CONTROLLER,
+          bootstrapRequest);
+      return response;
     } catch (ServiceException e) {
       OMNotLeaderException notLeaderException =
           OMFailoverProxyProvider.getNotLeaderException(e);

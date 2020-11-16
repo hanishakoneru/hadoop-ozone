@@ -17,6 +17,8 @@
 package org.apache.hadoop.ozone.protocolPB;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -27,12 +29,16 @@ import org.apache.hadoop.hdds.utils.ProtocolMessageMetrics;
 import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.om.OzoneManager;
 import org.apache.hadoop.ozone.om.exceptions.OMNotLeaderException;
+import org.apache.hadoop.ozone.om.ha.OMNodeDetails;
 import org.apache.hadoop.ozone.om.protocolPB.OzoneManagerProtocolPB;
 import org.apache.hadoop.ozone.om.ratis.OzoneManagerDoubleBuffer;
 import org.apache.hadoop.ozone.om.ratis.OzoneManagerRatisServer;
 import org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerRatisUtils;
 import org.apache.hadoop.ozone.om.request.OMClientRequest;
 import org.apache.hadoop.ozone.om.response.OMClientResponse;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapErrorCode;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapRequest;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 
@@ -117,6 +123,27 @@ public class OzoneManagerProtocolServerSideTranslatorPB implements
 
     return dispatcher.processRequest(request, this::processRequest,
         request.getCmdType(), request.getTraceID());
+  }
+
+  @Override
+  public BootstrapResponse bootstrap(RpcController controller,
+      BootstrapRequest request) throws ServiceException {
+    if (!isRatisEnabled) {
+      return BootstrapResponse.newBuilder()
+          .setSuccess(false)
+          .setErrorCode(BootstrapErrorCode.RATIS_NOT_ENABLED)
+          .build();
+    }
+    if (!omRatisServer.isLeader()) {
+      throw createNotLeaderException();
+    }
+
+    List<OMNodeDetails> newOMNodeDetails = new ArrayList<>();
+    request.getOmNodeInfosList().stream().forEach(nodeInfo ->
+        newOMNodeDetails.add(OMNodeDetails.getFromProto(nodeInfo)));
+
+    boolean success = omRatisServer.bootstrapNewOMs(newOMNodeDetails);
+    return BootstrapResponse.newBuilder().setSuccess(success).build();
   }
 
   private OMResponse processRequest(OMRequest request) throws

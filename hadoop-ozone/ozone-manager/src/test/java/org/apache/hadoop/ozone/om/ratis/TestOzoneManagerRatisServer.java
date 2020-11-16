@@ -107,7 +107,7 @@ public class TestOzoneManagerRatisServer {
     OMRatisSnapshotInfo omRatisSnapshotInfo = new OMRatisSnapshotInfo();
     when(ozoneManager.getSnapshotInfo()).thenReturn(omRatisSnapshotInfo);
     omRatisServer = OzoneManagerRatisServer.newOMRatisServer(conf, ozoneManager,
-      omNodeDetails, Collections.emptyList());
+      omNodeDetails, Collections.emptyList(), false);
     omRatisServer.start();
   }
 
@@ -147,7 +147,7 @@ public class TestOzoneManagerRatisServer {
 
     // Start new Ratis server. It should pick up and load the new SnapshotInfo
     omRatisServer = OzoneManagerRatisServer.newOMRatisServer(conf, ozoneManager,
-        omNodeDetails, Collections.emptyList());
+        omNodeDetails, Collections.emptyList(), false);
     omRatisServer.start();
     TermIndex lastAppliedTermIndex =
         omRatisServer.getLastAppliedTermIndex();
@@ -218,7 +218,7 @@ public class TestOzoneManagerRatisServer {
     omRatisServer.stop();
     OzoneManagerRatisServer newOmRatisServer = OzoneManagerRatisServer
         .newOMRatisServer(newConf, ozoneManager, nodeDetails,
-            Collections.emptyList());
+            Collections.emptyList(), false);
     newOmRatisServer.start();
 
     UUID uuid = UUID.nameUUIDFromBytes(customOmServiceId.getBytes());

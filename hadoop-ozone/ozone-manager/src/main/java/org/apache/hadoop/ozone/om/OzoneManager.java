@@ -147,6 +147,7 @@ import org.apache.hadoop.ozone.om.snapshot.OzoneManagerSnapshotProvider;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.DBUpdatesRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.KeyArgs;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMNodeInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRoleInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OzoneAclInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.ServicePort;
@@ -266,7 +267,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
   private String caCertPem = null;
   private static boolean testSecureOmFlag = false;
   private final Text omRpcAddressTxt;
-  private final OzoneConfiguration configuration;
+  private OzoneConfiguration configuration;
   private RPC.Server omRpcServer;
   private InetSocketAddress omRpcAddress;
   private String omId;
@@ -338,16 +339,22 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     STOPPED
   }
 
+  public enum StartupOption {
+    REGUALR,
+    BOOTSTRAP
+  }
+
   // Used in MiniOzoneCluster testing
   private State omState;
 
   private Thread emptier;
 
-  private OzoneManager(OzoneConfiguration conf) throws IOException,
-      AuthenticationException {
+
+  private OzoneManager(OzoneConfiguration conf, StartupOption startupOption)
+      throws IOException, AuthenticationException {
     super(OzoneVersionInfo.OZONE_VERSION_INFO);
     Preconditions.checkNotNull(conf);
-    configuration = conf;
+    setConfiguration(conf);
     // Load HA related configurations
     OMHANodeDetails omhaNodeDetails =
         OMHANodeDetails.loadOMHAConfig(configuration);
@@ -357,6 +364,8 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
 
     omStorage = new OMStorage(conf);
     omId = omStorage.getOmId();
+
+    exitManager = new ExitManager();
 
     // In case of single OM Node Service there will be no OM Node ID
     // specified, set it to value from om storage
@@ -453,7 +462,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     addS3GVolumeToDB();
 
     this.omRatisSnapshotInfo = new OMRatisSnapshotInfo();
-    initializeRatisServer();
+    initializeRatisServer(startupOption == StartupOption.BOOTSTRAP);
     if (isRatisEnabled) {
       // Create Ratis storage dir
       String omRatisDirectory =
@@ -620,6 +629,12 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
   @Override
   public void close() throws IOException {
     stop();
+  }
+
+  public void shutdown(Exception ex) throws IOException {
+    LOG.info("Shutting down Ozone Manager.");
+    stop();
+    exitManager.exitSystem(1, ex.getLocalizedMessage(), ex, LOG);
   }
 
   /**
@@ -922,7 +937,12 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
    */
   public static OzoneManager createOm(OzoneConfiguration conf)
       throws IOException, AuthenticationException {
-    return new OzoneManager(conf);
+    return new OzoneManager(conf, StartupOption.REGUALR);
+  }
+
+  public static OzoneManager createOm(OzoneConfiguration conf,
+      StartupOption startupOption) throws IOException, AuthenticationException {
+    return new OzoneManager(conf, startupOption);
   }
 
   /**
@@ -1227,7 +1247,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     metricsTimer = new Timer();
     metricsTimer.schedule(scheduleOMMetricsWriteTask, 0, period);
 
-    initializeRatisServer();
+    initializeRatisServer(false);
     if (omRatisServer != null) {
       omRatisServer.start();
     }
@@ -1322,14 +1342,14 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
   /**
    * Creates an instance of ratis server.
    */
-  private void initializeRatisServer() throws IOException {
+  private void initializeRatisServer(boolean shouldBootstrap) throws IOException {
     if (isRatisEnabled) {
       if (omRatisServer == null) {
         // This needs to be done before initializing Ratis.
         RatisDropwizardExports.
             registerRatisMetricReporters(ratisMetricsMap);
         omRatisServer = OzoneManagerRatisServer.newOMRatisServer(
-            configuration, this, omNodeDetails, peerNodes);
+            configuration, this, omNodeDetails, peerNodes, shouldBootstrap);
       }
       LOG.info("OzoneManager Ratis server initialized at port {}",
           omRatisServer.getServerPort());
@@ -2706,6 +2726,44 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
   }
 
   @Override
+  public boolean bootstrap(List<OMNodeInfo> omNodeInfos) throws IOException {
+    LOG.error("OM bootstrap command should be received via the RPC server");
+    throw new UnsupportedOperationException("OM bootstrap command should be " +
+        "received via the RPC server");
+  }
+
+  /**
+   * Add a new OM Node to the HA cluster.
+   */
+  public void addNewOMNode(String newOMNodeId, OzoneConfiguration newConf) {
+    setConfiguration(newConf);
+    OMNodeDetails newOMNodeDetails = OMNodeDetails.getOMNodeDetailsFromConf(
+        newConf, getOMServiceId(), newOMNodeId);
+    peerNodes.add(newOMNodeDetails);
+    if (omSnapshotProvider == null) {
+      omSnapshotProvider = new OzoneManagerSnapshotProvider(
+          configuration, omRatisSnapshotDir, peerNodes);
+    } else {
+      omSnapshotProvider.addNewPeerNode(newOMNodeDetails);
+    }
+    omRatisServer.addRaftPeer(newOMNodeDetails);
+  }
+
+  public boolean doesPeerExist(String omNodeId) {
+    if (getOMNodeId().equals(omNodeId)) {
+      return true;
+    }
+    if (peerNodes != null && !peerNodes.isEmpty()) {
+      for (OMNodeDetails omNodeDetails : peerNodes) {
+        if (omNodeDetails.getOMNodeId().contains(omNodeId)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  @Override
   /**
    * {@inheritDoc}
    */
@@ -3419,7 +3477,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
       } catch (IOException ex) {
         String errorMsg = "Failed to reset to original DB. OM is in an " +
             "inconsistent state.";
-        ExitUtils.terminate(1, errorMsg, ex, LOG);
+        exitManager.exitSystem(1, errorMsg, ex, LOG);
       }
       throw e;
     }
@@ -3460,6 +3518,10 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
 
   public static Logger getLogger() {
     return LOG;
+  }
+
+  private void setConfiguration(OzoneConfiguration conf) {
+    this.configuration = conf;
   }
 
   public OzoneConfiguration getConfiguration() {

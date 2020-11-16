@@ -17,16 +17,21 @@
 
 package org.apache.hadoop.ozone.om.ha;
 
-import org.apache.commons.lang3.StringUtils;
-
-import org.apache.hadoop.hdds.server.http.HttpConfig;
-import org.apache.hadoop.net.NetUtils;
-
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.hdds.conf.OzoneConfiguration;
+import org.apache.hadoop.net.NetUtils;
+import org.apache.hadoop.ozone.OmUtils;
+import org.apache.hadoop.ozone.OzoneIllegalArgumentException;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMNodeInfo;
+
 import static org.apache.hadoop.ozone.OzoneConsts.OZONE_DB_CHECKPOINT_REQUEST_FLUSH;
 import static org.apache.hadoop.ozone.OzoneConsts.OZONE_OM_DB_CHECKPOINT_HTTP_ENDPOINT;
+import static org.apache.hadoop.ozone.om.OMConfigKeys.OZONE_OM_ADDRESS_KEY;
+import static org.apache.hadoop.ozone.om.OMConfigKeys.OZONE_OM_RATIS_PORT_DEFAULT;
+import static org.apache.hadoop.ozone.om.OMConfigKeys.OZONE_OM_RATIS_PORT_KEY;
 
 /**
  * This class stores OM node details.
@@ -161,8 +166,8 @@ public final class OMNodeDetails {
     return NetUtils.getHostPortString(rpcAddress);
   }
 
-  public String getOMDBCheckpointEnpointUrl(HttpConfig.Policy httpPolicy) {
-    if (httpPolicy.isHttpEnabled()) {
+  public String getOMDBCheckpointEnpointUrl(boolean isHttpPolicy) {
+    if (isHttpPolicy) {
       if (StringUtils.isNotEmpty(httpAddress)) {
         return "http://" + httpAddress + OZONE_OM_DB_CHECKPOINT_HTTP_ENDPOINT
             + "?" + OZONE_DB_CHECKPOINT_REQUEST_FLUSH + "=true";
@@ -174,5 +179,55 @@ public final class OMNodeDetails {
       }
     }
     return null;
+  }
+
+  public static OMNodeDetails getFromProto(OMNodeInfo omNodeInfo) {
+    InetSocketAddress rpcAddr = NetUtils.createSocketAddrForHost(
+        omNodeInfo.getHostAddress(), omNodeInfo.getRpcPort());
+    return new OMNodeDetails.Builder()
+        .setOMNodeId(omNodeInfo.getNodeId())
+        .setRpcAddress(rpcAddr)
+        .setRatisPort(omNodeInfo.getRatisPort())
+        .setHttpAddress(omNodeInfo.getHttpAddr())
+        .setHttpsAddress(omNodeInfo.getHttpsAddr())
+        .setOMServiceId(omNodeInfo.getServiceId())
+        .build();
+  }
+
+  public static OMNodeDetails getOMNodeDetailsFromConf(OzoneConfiguration conf,
+      String omServiceId, String omNodeId) {
+    String rpcAddrKey = OmUtils.addKeySuffixes(OZONE_OM_ADDRESS_KEY,
+        omServiceId, omNodeId);
+    String rpcAddrStr = OmUtils.getOmRpcAddress(conf, rpcAddrKey);
+    if (rpcAddrStr == null || rpcAddrStr.isEmpty()) {
+      throw new OzoneIllegalArgumentException("There is no OM configuration " +
+          "for node ID " + omNodeId + " in ozone-site.xml.");
+    }
+
+    String ratisPortKey = OmUtils.addKeySuffixes(OZONE_OM_RATIS_PORT_KEY,
+        omServiceId, omNodeId);
+    int ratisPort = conf.getInt(ratisPortKey, OZONE_OM_RATIS_PORT_DEFAULT);
+
+    InetSocketAddress omRpcAddress = null;
+    try {
+      omRpcAddress = NetUtils.createSocketAddr(rpcAddrStr);
+    } catch (Exception e) {
+      throw new OzoneIllegalArgumentException("Couldn't create socket address" +
+          " for OM " + omNodeId + " at " + rpcAddrStr, e);
+    }
+
+    String httpAddr = OmUtils.getHttpAddressForOMPeerNode(conf,
+        omServiceId, omNodeId, omRpcAddress.getHostName());
+    String httpsAddr = OmUtils.getHttpsAddressForOMPeerNode(conf,
+        omServiceId, omNodeId, omRpcAddress.getHostName());
+
+    return new OMNodeDetails.Builder()
+        .setOMNodeId(omNodeId)
+        .setRpcAddress(omRpcAddress)
+        .setRatisPort(ratisPort)
+        .setHttpAddress(httpAddr)
+        .setHttpsAddress(httpsAddr)
+        .setOMServiceId(omServiceId)
+        .build();
   }
 }

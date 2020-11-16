@@ -120,7 +120,7 @@ public class OzoneManagerSnapshotProvider {
     File targetFile = new File(snapshotFileName + ".tar.gz");
 
     String omCheckpointUrl = peerNodesMap.get(leaderOMNodeID)
-        .getOMDBCheckpointEnpointUrl(httpPolicy);
+        .getOMDBCheckpointEnpointUrl(httpPolicy.isHttpEnabled());
 
     LOG.info("Downloading latest checkpoint from Leader OM {}. Checkpoint " +
         "URL: {}", leaderOMNodeID, omCheckpointUrl);
@@ -158,5 +158,12 @@ public class OzoneManagerSnapshotProvider {
     if (connectionFactory != null) {
       connectionFactory.destroy();
     }
+  }
+
+  /**
+   * When a new OM is bootstrapped, add it to the peerNode map.
+   */
+  public void addNewPeerNode(OMNodeDetails newOMNode) {
+    peerNodesMap.put(newOMNode.getOMNodeId(), newOMNode);
   }
 }

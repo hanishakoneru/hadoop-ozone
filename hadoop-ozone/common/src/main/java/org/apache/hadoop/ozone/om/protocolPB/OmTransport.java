@@ -20,6 +20,8 @@ package org.apache.hadoop.ozone.om.protocolPB;
 import java.io.IOException;
 
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapRequest;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 
@@ -32,6 +34,9 @@ public interface OmTransport {
    * The main method to send out the request on the defined transport.
    */
   OMResponse submitRequest(OMRequest payload) throws IOException;
+
+  BootstrapResponse bootstrapRequest(BootstrapRequest bootstrapRequest)
+    throws IOException;
 
   /**
    * Return the addresses of the Ozone Managers, used for delegation token.
