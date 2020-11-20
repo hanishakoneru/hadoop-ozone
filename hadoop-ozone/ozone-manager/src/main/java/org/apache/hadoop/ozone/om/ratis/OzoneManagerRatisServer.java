@@ -37,7 +37,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.conf.StorageUnit;
-import org.apache.hadoop.hdds.server.ServerUtils;
 import org.apache.hadoop.hdds.tracing.TracingUtil;
 import org.apache.hadoop.ipc.ProtobufRpcEngine.Server;
 import org.apache.hadoop.ozone.om.OMConfigKeys;
@@ -47,6 +46,7 @@ import org.apache.hadoop.ozone.om.exceptions.OMLeaderNotReadyException;
 import org.apache.hadoop.ozone.om.exceptions.OMNotLeaderException;
 import org.apache.hadoop.ozone.om.ha.OMNodeDetails;
 import org.apache.hadoop.ozone.om.helpers.OMRatisHelper;
+import org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerRatisUtils;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
@@ -105,6 +105,7 @@ public final class OzoneManagerRatisServer {
 
   private final OzoneManager ozoneManager;
   private final OzoneManagerStateMachine omStateMachine;
+  private final String ratisStorageDir;
   private final ClientId clientId = ClientId.randomId();
 
   private final ScheduledExecutorService scheduledRoleChecker;
@@ -311,6 +312,7 @@ public final class OzoneManagerRatisServer {
     this.ozoneManager = om;
     this.omRatisAddress = addr;
     this.port = addr.getPort();
+    this.ratisStorageDir = OzoneManagerRatisUtils.getOMRatisDirectory(conf);
     RaftProperties serverProperties = newRaftProperties(conf);
 
     this.raftPeerId = localRaftPeerId;
@@ -419,6 +421,11 @@ public final class OzoneManagerRatisServer {
   }
 
   @VisibleForTesting
+  public String getRaftGroupId() {
+    return this.raftGroupId.getUuid().toString();
+  }
+
+  @VisibleForTesting
   public RaftServer getServer() {
     return server;
   }
@@ -480,9 +487,8 @@ public final class OzoneManagerRatisServer {
     }
 
     // Set Ratis storage directory
-    String storageDir = OzoneManagerRatisServer.getOMRatisDirectory(conf);
     RaftServerConfigKeys.setStorageDir(properties,
-        Collections.singletonList(new File(storageDir)));
+        Collections.singletonList(new File(ratisStorageDir)));
 
     // Set RAFT segment size
     final int raftSegmentSize = (int) conf.getStorageSize(
@@ -607,7 +613,7 @@ public final class OzoneManagerRatisServer {
     long roleCheckIntervalDuration = conf.getTimeDuration(
         OMConfigKeys.OZONE_OM_RATIS_SERVER_ROLE_CHECK_INTERVAL_KEY,
         OMConfigKeys.OZONE_OM_RATIS_SERVER_ROLE_CHECK_INTERVAL_DEFAULT
-            .getDuration(), nodeFailureTimeoutUnit);
+            .getDuration(), roleCheckIntervalUnit);
     this.roleCheckIntervalMs = TimeDuration.valueOf(
         roleCheckIntervalDuration, roleCheckIntervalUnit)
         .toLong(TimeUnit.MILLISECONDS);
@@ -757,24 +763,15 @@ public final class OzoneManagerRatisServer {
     return UUID.nameUUIDFromBytes(omServiceId.getBytes(StandardCharsets.UTF_8));
   }
 
-  /**
-   * Get the local directory where ratis logs will be stored.
-   */
-  public static String getOMRatisDirectory(ConfigurationSource conf) {
-    String storageDir = conf.get(OMConfigKeys.OZONE_OM_RATIS_STORAGE_DIR);
-
-    if (Strings.isNullOrEmpty(storageDir)) {
-      storageDir = ServerUtils.getDefaultRatisDirectory(conf);
-    }
-    return storageDir;
+  public String getRatisStorageDir() {
+    return ratisStorageDir;
   }
 
-  public static String getOMRatisSnapshotDirectory(ConfigurationSource conf) {
+  public String getOMRatisSnapshotDirectory(ConfigurationSource conf) {
     String snapshotDir = conf.get(OMConfigKeys.OZONE_OM_RATIS_SNAPSHOT_DIR);
 
     if (Strings.isNullOrEmpty(snapshotDir)) {
-      snapshotDir = Paths.get(getOMRatisDirectory(conf),
-          "snapshot").toString();
+      snapshotDir = Paths.get(ratisStorageDir, "snapshot").toString();
     }
     return snapshotDir;
   }

@@ -120,7 +120,6 @@ public class OzoneManagerProtocolServerSideTranslatorPB implements
   @Override
   public OMResponse submitRequest(RpcController controller,
       OMRequest request) throws ServiceException {
-
     return dispatcher.processRequest(request, this::processRequest,
         request.getCmdType(), request.getTraceID());
   }

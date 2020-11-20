@@ -102,6 +102,7 @@ import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.OzoneAcl;
 import org.apache.hadoop.ozone.OzoneConfigKeys;
 import org.apache.hadoop.ozone.OzoneConsts;
+import org.apache.hadoop.ozone.OzoneIllegalArgumentException;
 import org.apache.hadoop.ozone.OzoneSecurityUtil;
 import org.apache.hadoop.ozone.audit.AuditAction;
 import org.apache.hadoop.ozone.audit.AuditEventStatus;
@@ -239,7 +240,6 @@ import static org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.
 import org.apache.hadoop.util.Time;
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole;
 import org.apache.ratis.server.protocol.TermIndex;
-import org.apache.ratis.util.ExitUtils;
 import org.apache.ratis.util.FileUtils;
 import org.apache.ratis.util.LifeCycle;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
@@ -465,8 +465,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     initializeRatisServer(startupOption == StartupOption.BOOTSTRAP);
     if (isRatisEnabled) {
       // Create Ratis storage dir
-      String omRatisDirectory =
-          OzoneManagerRatisServer.getOMRatisDirectory(configuration);
+      String omRatisDirectory = omRatisServer.getRatisStorageDir();
       if (omRatisDirectory == null || omRatisDirectory.isEmpty()) {
         throw new IllegalArgumentException(HddsConfigKeys.OZONE_METADATA_DIRS +
             " must be defined.");
@@ -474,7 +473,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
       OmUtils.createOMDir(omRatisDirectory);
       // Create Ratis snapshot dir
       omRatisSnapshotDir = OmUtils.createOMDir(
-          OzoneManagerRatisServer.getOMRatisSnapshotDirectory(configuration));
+          omRatisServer.getOMRatisSnapshotDirectory(configuration));
 
       if (peerNodes != null && !peerNodes.isEmpty()) {
         this.omSnapshotProvider = new OzoneManagerSnapshotProvider(
@@ -632,9 +631,10 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
   }
 
   public void shutdown(Exception ex) throws IOException {
-    LOG.info("Shutting down Ozone Manager.");
-    stop();
-    exitManager.exitSystem(1, ex.getLocalizedMessage(), ex, LOG);
+    if (omState != State.STOPPED) {
+      stop();
+      exitManager.exitSystem(1, ex.getLocalizedMessage(), ex, LOG);
+    }
   }
 
   /**
@@ -1393,7 +1393,9 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
    * Stop service.
    */
   public void stop() {
+    LOG.info("Stopping Ozone Manager");
     try {
+      omState = State.STOPPED;
       // Cancel the metrics timer and set to null.
       if (metricsTimer != null) {
         metricsTimer.cancel();
@@ -1432,7 +1434,6 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
       if (omSnapshotProvider != null) {
         omSnapshotProvider.stop();
       }
-      omState = State.STOPPED;
     } catch (Exception e) {
       LOG.error("OzoneManager stop failed.", e);
     }
@@ -2735,10 +2736,23 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
   /**
    * Add a new OM Node to the HA cluster.
    */
-  public void addNewOMNode(String newOMNodeId, OzoneConfiguration newConf) {
-    setConfiguration(newConf);
+  public void addNewOMNode(String newOMNodeId) {
     OMNodeDetails newOMNodeDetails = OMNodeDetails.getOMNodeDetailsFromConf(
-        newConf, getOMServiceId(), newOMNodeId);
+        getConfiguration(), getOMServiceId(), newOMNodeId);
+    if (newOMNodeDetails == null) {
+      // Load new configuration object to read in new peer information
+      setConfiguration(new OzoneConfiguration());
+      newOMNodeDetails = OMNodeDetails.getOMNodeDetailsFromConf(
+          getConfiguration(), getOMServiceId(), newOMNodeId);
+
+      if (newOMNodeDetails == null) {
+        // If new node information is not present in new config also, throw
+        // an exception
+        throw new OzoneIllegalArgumentException("There is no OM configuration " +
+            "for node ID " + newOMNodeId + " in ozone-site.xml.");
+      }
+    }
+
     peerNodes.add(newOMNodeDetails);
     if (omSnapshotProvider == null) {
       omSnapshotProvider = new OzoneManagerSnapshotProvider(
@@ -3520,7 +3534,8 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     return LOG;
   }
 
-  private void setConfiguration(OzoneConfiguration conf) {
+  @VisibleForTesting
+  public void setConfiguration(OzoneConfiguration conf) {
     this.configuration = conf;
   }
 

@@ -415,7 +415,8 @@ public class OzoneManagerStateMachine extends BaseStateMachine {
   @Override
   public void close() throws IOException {
     // OM should be shutdown as the StateMachine has shutdown.
-    LOG.info("Shutting down Ozone Manager as the StateMachine has shut down.");
+    LOG.info("StateMachine has shutdown. Shutdown OzoneManager if not " +
+        "already shutdown.");
     ozoneManager.shutdown(new RaftException("RaftServer called shutdown on " +
         "StateMachine"));
   }

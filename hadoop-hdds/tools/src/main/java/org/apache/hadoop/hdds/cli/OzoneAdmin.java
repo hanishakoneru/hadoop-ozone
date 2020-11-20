@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.hdds.cli;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.util.NativeCodeLoader;
 
@@ -48,6 +49,11 @@ public class OzoneAdmin extends GenericCli {
       ozoneConf = createOzoneConfiguration();
     }
     return ozoneConf;
+  }
+
+  @VisibleForTesting
+  public void setOzoneConf(OzoneConfiguration conf) {
+    ozoneConf = conf;
   }
 
   /**

@@ -18,9 +18,13 @@
 package org.apache.hadoop.ozone.om.ratis.utils;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
+import org.apache.hadoop.hdds.server.ServerUtils;
 import org.apache.hadoop.hdds.utils.db.DBStore;
 import org.apache.hadoop.hdds.utils.db.Table;
+import org.apache.hadoop.ozone.om.OMConfigKeys;
 import org.apache.hadoop.ozone.om.OmMetadataManagerImpl;
 import org.apache.hadoop.ozone.om.OzoneManager;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
@@ -307,5 +311,17 @@ public final class OzoneManagerRatisUtils {
     }
 
     return true;
+  }
+
+  /**
+   * Get the local directory where ratis logs will be stored.
+   */
+  public static String getOMRatisDirectory(ConfigurationSource conf) {
+    String storageDir = conf.get(OMConfigKeys.OZONE_OM_RATIS_STORAGE_DIR);
+
+    if (Strings.isNullOrEmpty(storageDir)) {
+      storageDir = ServerUtils.getDefaultRatisDirectory(conf);
+    }
+    return storageDir;
   }
 }

@@ -66,6 +66,7 @@ public abstract class TestOzoneManagerHA {
   private OzoneConfiguration conf;
   private String clusterId;
   private String scmId;
+  private String omId;
   private String omServiceId;
   private static int numOfOMs = 3;
   private static final int LOG_PURGE_GAP = 50;
@@ -124,6 +125,7 @@ public abstract class TestOzoneManagerHA {
     conf = new OzoneConfiguration();
     clusterId = UUID.randomUUID().toString();
     scmId = UUID.randomUUID().toString();
+    omId = UUID.randomUUID().toString();
     omServiceId = "om-service-test1";
     conf.setBoolean(OZONE_ACL_ENABLED, true);
     conf.set(OzoneConfigKeys.OZONE_ADMINISTRATORS,
@@ -142,6 +144,7 @@ public abstract class TestOzoneManagerHA {
     cluster = (MiniOzoneHAClusterImpl) MiniOzoneCluster.newHABuilder(conf)
         .setClusterId(clusterId)
         .setScmId(scmId)
+        .setOmId(omId)
         .setOMServiceId(omServiceId)
         .setNumOfOzoneManagers(numOfOMs)
         .build();

@@ -200,8 +200,7 @@ public final class OMNodeDetails {
         omServiceId, omNodeId);
     String rpcAddrStr = OmUtils.getOmRpcAddress(conf, rpcAddrKey);
     if (rpcAddrStr == null || rpcAddrStr.isEmpty()) {
-      throw new OzoneIllegalArgumentException("There is no OM configuration " +
-          "for node ID " + omNodeId + " in ozone-site.xml.");
+      return null;
     }
 
     String ratisPortKey = OmUtils.addKeySuffixes(OZONE_OM_RATIS_PORT_KEY,
