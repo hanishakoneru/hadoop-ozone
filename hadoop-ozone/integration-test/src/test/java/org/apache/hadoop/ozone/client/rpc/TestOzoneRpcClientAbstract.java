@@ -3128,7 +3128,7 @@ public abstract class TestOzoneRpcClientAbstract {
 
     Assert.assertEquals(true, omKeyInfo.getLatestVersionLocations().isMultipartKey());
 
-    omKeyInfo.getLatestVersionLocations().getLocationList().forEach(omKeyLocationInfo -> {
+    omKeyInfo.getLatestVersionLocations().getBlocksLatestVersionOnly().forEach(omKeyLocationInfo -> {
       Assert.assertTrue(omKeyLocationInfo.getPartNumber() != -1);
     });
   }
