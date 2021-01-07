@@ -3122,6 +3122,15 @@ public abstract class TestOzoneRpcClientAbstract {
     sb.append(part2);
     sb.append(part3);
     Assert.assertEquals(sb.toString(), new String(fileContent));
+
+    OmKeyInfo omKeyInfo =
+        ozoneManager.getMetadataManager().getKeyTable().get(ozoneManager.getMetadataManager().getOzoneKey(bucket.getVolumeName(), bucket.getName(), keyName));
+
+    Assert.assertEquals(true, omKeyInfo.getLatestVersionLocations().isMultipartKey());
+
+    omKeyInfo.getLatestVersionLocations().getLocationList().forEach(omKeyLocationInfo -> {
+      Assert.assertTrue(omKeyLocationInfo.getPartNumber() != -1);
+    });
   }
 
 
