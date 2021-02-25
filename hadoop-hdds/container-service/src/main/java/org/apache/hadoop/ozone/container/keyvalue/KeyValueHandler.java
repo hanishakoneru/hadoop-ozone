@@ -607,6 +607,8 @@ public class KeyValueHandler extends Handler {
 
       boolean isReadChunkV0 = getReadChunkVersion(request.getReadChunk())
           .equals(ContainerProtos.ReadChunkVersion.V0);
+      System.out.println("----- KeyValueHandler handleReadChunk " +
+          "isReadChunkV0: " + isReadChunkV0);
       if (isReadChunkV0) {
         // For older clients, set ReadDataIntoSingleBuffer to true so that
         // all the data read from chunk file is returned as a single

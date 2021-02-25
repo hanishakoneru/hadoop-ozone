@@ -228,6 +228,8 @@ public final class ContainerProtocolCalls  {
             .setBlockID(blockID.getDatanodeBlockIDProtobuf())
             .setChunkData(chunk)
             .setReadChunkVersion(ContainerProtos.ReadChunkVersion.V1);
+    System.out.println("----- ContainerProtocalCalls#readChunk Set " +
+        "ReadChunkVersion V1");
     String id = xceiverClient.getPipeline().getClosestNode().getUuidString();
     ContainerCommandRequestProto.Builder builder =
         ContainerCommandRequestProto.newBuilder().setCmdType(Type.ReadChunk)
@@ -492,6 +494,8 @@ public final class ContainerProtocolCalls  {
             .newBuilder().setBlock(getBlock)
             .setReadChunkVersion(ContainerProtos.ReadChunkVersion.V1)
             .build();
+    System.out.println("----- ContainerProtocalCalls#readSmallFile Set " +
+        "ReadChunkVersion V1");
     String id = client.getPipeline().getClosestNode().getUuidString();
 
     ContainerCommandRequestProto.Builder builder = ContainerCommandRequestProto

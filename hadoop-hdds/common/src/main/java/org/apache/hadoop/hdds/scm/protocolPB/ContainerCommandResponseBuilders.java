@@ -283,6 +283,8 @@ public final class ContainerCommandResponseBuilders {
 
     boolean isReadChunkV0 = getReadChunkVersion(request.getReadChunk())
         .equals(ContainerProtos.ReadChunkVersion.V0);
+    System.out.println("----- ContainerCommandResponseBuilder " +
+        "getReadChunkResponse isReadChunkV0: " + isReadChunkV0);
 
     ReadChunkResponseProto.Builder response;
 

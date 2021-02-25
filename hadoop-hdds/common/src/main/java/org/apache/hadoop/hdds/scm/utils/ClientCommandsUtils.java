@@ -30,8 +30,12 @@ public final class ClientCommandsUtils {
   public static ContainerProtos.ReadChunkVersion getReadChunkVersion(
       ContainerProtos.ReadChunkRequestProto readChunkRequest) {
     if (readChunkRequest.hasReadChunkVersion()) {
+      System.out.println("----- ClientCommandUtils getReadChunkVersion: " +
+          readChunkRequest.getReadChunkVersion());
       return readChunkRequest.getReadChunkVersion();
     } else {
+      System.out.println("----- ClientCommandUtils getReadChunkVersion: null," +
+          " set to V0");
       return ContainerProtos.ReadChunkVersion.V0;
     }
   }
