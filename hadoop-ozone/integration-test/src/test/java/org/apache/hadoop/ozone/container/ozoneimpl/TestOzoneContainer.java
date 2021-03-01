@@ -209,7 +209,6 @@ public class TestOzoneContainer {
       // Read Chunk
       request = ContainerTestHelper.getReadChunkRequest(
           pipeline, writeChunkRequest.getWriteChunk());
-
       response = client.sendCommand(request);
       Assert.assertNotNull(response);
       Assert.assertEquals(ContainerProtos.Result.SUCCESS, response.getResult());
