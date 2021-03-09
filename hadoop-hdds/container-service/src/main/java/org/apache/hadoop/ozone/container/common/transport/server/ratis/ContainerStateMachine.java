@@ -569,15 +569,16 @@ public class ContainerStateMachine extends BaseStateMachine {
         requestProto.getWriteChunk();
     ContainerProtos.ChunkInfo chunkInfo = writeChunkRequestProto.getChunkData();
     // prepare the chunk to be read
-    ReadChunkRequestProto.Builder readChunkRequestProto =
+    ReadChunkRequestProto readChunkRequestProto =
         ReadChunkRequestProto.newBuilder()
             .setBlockID(writeChunkRequestProto.getBlockID())
-            .setChunkData(chunkInfo);
+            .setChunkData(chunkInfo)
+            .build();
 //            .setReadChunkVersion(ContainerProtos.ReadChunkVersion.V1);
     System.out.println("----- ContainerStateMachine#readStateMachineData " +
         "Did not Set ReadChunkVersion to V1 explicitly. Version: " +
-        readChunkRequestProto.build().getReadChunkVersion() + ", isNull: " +
-        readChunkRequestProto.build().hasReadChunkVersion());
+        readChunkRequestProto.getReadChunkVersion() + ", isNull: " +
+        readChunkRequestProto.hasReadChunkVersion());
     ContainerCommandRequestProto dataContainerCommandProto =
         ContainerCommandRequestProto.newBuilder(requestProto)
             .setCmdType(Type.ReadChunk).setReadChunk(readChunkRequestProto)
