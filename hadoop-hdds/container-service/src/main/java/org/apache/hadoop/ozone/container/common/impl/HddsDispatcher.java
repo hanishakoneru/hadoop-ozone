@@ -167,6 +167,11 @@ public class HddsDispatcher implements ContainerDispatcher, Auditor {
   public ContainerCommandResponseProto dispatch(
       ContainerCommandRequestProto msg, DispatcherContext dispatcherContext) {
     try {
+      if (msg.hasReadChunk()) {
+        System.out.println("----- HddsDispatcher#dispatch Version: " +
+            msg.getReadChunk().getReadChunkVersion() + ", isNull: " +
+            msg.getReadChunk().hasReadChunkVersion());
+      }
       return dispatcher.processRequest(msg,
           req -> dispatchRequest(msg, dispatcherContext),
           msg.getCmdType(),

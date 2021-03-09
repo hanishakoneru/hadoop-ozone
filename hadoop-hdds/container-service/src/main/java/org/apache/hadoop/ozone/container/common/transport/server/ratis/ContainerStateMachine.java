@@ -575,14 +575,14 @@ public class ContainerStateMachine extends BaseStateMachine {
             .setChunkData(chunkInfo)
             .build();
 //            .setReadChunkVersion(ContainerProtos.ReadChunkVersion.V1);
-    System.out.println("----- ContainerStateMachine#readStateMachineData " +
-        "Did not Set ReadChunkVersion to V1 explicitly. Version: " +
-        readChunkRequestProto.getReadChunkVersion() + ", isNull: " +
-        readChunkRequestProto.hasReadChunkVersion());
     ContainerCommandRequestProto dataContainerCommandProto =
         ContainerCommandRequestProto.newBuilder(requestProto)
             .setCmdType(Type.ReadChunk).setReadChunk(readChunkRequestProto)
             .build();
+    System.out.println("----- ContainerStateMachine#readStateMachineData " +
+        "Did not Set ReadChunkVersion to V1 explicitly. Version: " +
+        dataContainerCommandProto.getReadChunk().getReadChunkVersion() + ", isNull: " +
+        dataContainerCommandProto.getReadChunk().hasReadChunkVersion());
     DispatcherContext context =
         new DispatcherContext.Builder().setTerm(term).setLogIndex(index)
             .setReadFromTmpFile(true).build();
