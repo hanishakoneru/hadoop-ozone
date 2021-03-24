@@ -17,6 +17,7 @@
 
 package org.apache.hadoop.ozone.om;
 
+import com.google.protobuf.ServiceException;
 import javax.management.ObjectName;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -1349,17 +1350,24 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
 
     final int handlerCount = conf.getInt(OZONE_OM_HANDLER_COUNT_KEY,
         OZONE_OM_HANDLER_COUNT_DEFAULT);
-    RPC.setProtocolEngine(configuration, OzoneManagerProtocolPB.class,
+    RPC.setProtocolEngine(conf, OzoneManagerProtocolPB.class,
         ProtobufRpcEngine.class);
     this.omServerProtocol = new OzoneManagerProtocolServerSideTranslatorPB(
         this, omRatisServer, omClientProtocolMetrics, isRatisEnabled,
         getLastTrxnIndexForNonRatis());
 
     BlockingService omService = newReflectiveBlockingService(omServerProtocol);
+    try {
+      omServerProtocol.bootstrap(null, null);
+    } catch (ServiceException e) {
+    }
 
-    return startRpcServer(configuration, omNodeRpcAddr,
+    RPC.Server server = startRpcServer(configuration, omNodeRpcAddr,
         OzoneManagerProtocolPB.class, omService,
         handlerCount);
+
+    // Add Inter OM Service protocol to the RPC server
+    RPC.setProtocolEngine(conf, );
   }
 
   /**
@@ -2763,6 +2771,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
    */
   @Override
   public void bootstrap(OMNodeDetails newOMNode) throws IOException {
+    System.out.println("------ 1 OM bootstrap");
     // Create InterOmServiceProtocol client to send request to other OMs
     if (isRatisEnabled) {
       OzoneManagerInterServiceProtocolImpl omInterServiceProtocol =

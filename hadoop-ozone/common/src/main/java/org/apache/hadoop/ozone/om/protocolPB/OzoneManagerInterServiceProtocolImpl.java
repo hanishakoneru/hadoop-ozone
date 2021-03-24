@@ -37,6 +37,7 @@ public class OzoneManagerInterServiceProtocolImpl implements
 
   @Override
   public void bootstrap(OMNodeDetails newOMNode) throws IOException {
+    System.out.println("------ 1 OMISP bootstrap");
     BootstrapOMRequest bootstrapOMRequest = BootstrapOMRequest
         .newBuilder()
         .setNodeId(newOMNode.getOMNodeId())

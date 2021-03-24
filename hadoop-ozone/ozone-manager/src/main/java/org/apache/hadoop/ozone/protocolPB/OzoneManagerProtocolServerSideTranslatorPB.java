@@ -231,6 +231,10 @@ public class OzoneManagerProtocolServerSideTranslatorPB implements
   @Override
   public BootstrapOMResponse bootstrap(RpcController controller,
       BootstrapOMRequest request) throws ServiceException {
+    System.out.println("------ 1 OMPSST bootstrap");
+    if (request == null) {
+      return null;
+    }
     if (!isRatisEnabled) {
       return BootstrapOMResponse.newBuilder()
           .setSuccess(false)
