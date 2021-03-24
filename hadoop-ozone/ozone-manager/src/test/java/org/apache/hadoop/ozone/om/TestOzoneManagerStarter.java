@@ -157,5 +157,10 @@ public class TestOzoneManagerStarter {
       }
       return initStatus;
     }
+
+    public void bootstrap(OzoneConfiguration conf) throws IOException,
+        AuthenticationException {
+      //TODO: Add test for bootstrap
+    }
   }
 }

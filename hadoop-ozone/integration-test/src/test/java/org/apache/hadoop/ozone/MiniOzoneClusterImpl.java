@@ -104,7 +104,7 @@ public class MiniOzoneClusterImpl implements MiniOzoneCluster {
   private static final Logger LOG =
       LoggerFactory.getLogger(MiniOzoneClusterImpl.class);
 
-  private final OzoneConfiguration conf;
+  private OzoneConfiguration conf;
   private StorageContainerManager scm;
   private OzoneManager ozoneManager;
   private final List<HddsDatanodeService> hddsDatanodes;
@@ -165,6 +165,11 @@ public class MiniOzoneClusterImpl implements MiniOzoneCluster {
   @Override
   public OzoneConfiguration getConf() {
     return conf;
+  }
+
+  @Override
+  public void setConf(OzoneConfiguration newConf) {
+    this.conf = newConf;
   }
 
   @Override
@@ -674,17 +679,8 @@ public class MiniOzoneClusterImpl implements MiniOzoneCluster {
     }
 
     void initializeOmStorage(OMStorage omStorage) throws IOException {
-      if (omStorage.getState() == StorageState.INITIALIZED) {
-        return;
-      }
-      omStorage.setClusterId(clusterId);
-      omStorage.setScmId(scmId.get());
-      omStorage.setOmId(omId.orElse(UUID.randomUUID().toString()));
-      // Initialize ozone certificate client if security is enabled.
-      if (OzoneSecurityUtil.isSecurityEnabled(conf)) {
-        OzoneManager.initializeSecurity(conf, omStorage);
-      }
-      omStorage.initialize();
+      initOmStorage(omStorage, conf, clusterId, scmId.get(),
+          omId.orElse(UUID.randomUUID().toString()));
     }
 
     /**
@@ -838,5 +834,21 @@ public class MiniOzoneClusterImpl implements MiniOzoneCluster {
 
       ConfigurationProvider.setConfiguration(conf);
     }
+  }
+
+  static void initOmStorage(OMStorage omStorage,
+      OzoneConfiguration config, String clusterId, String scmId, String omId)
+      throws IOException {
+    if (omStorage.getState() == StorageState.INITIALIZED) {
+      return;
+    }
+    omStorage.setClusterId(clusterId);
+    omStorage.setScmId(scmId);
+    omStorage.setOmId(omId);
+    // Initialize ozone certificate client if security is enabled.
+    if (OzoneSecurityUtil.isSecurityEnabled(config)) {
+      OzoneManager.initializeSecurity(config, omStorage);
+    }
+    omStorage.initialize();
   }
 }

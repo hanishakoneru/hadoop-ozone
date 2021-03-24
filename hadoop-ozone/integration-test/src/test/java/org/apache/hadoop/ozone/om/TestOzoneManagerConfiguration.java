@@ -34,7 +34,7 @@ import org.apache.hadoop.ozone.MiniOzoneCluster;
 import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.OzoneConsts;
 import org.apache.hadoop.ozone.OzoneIllegalArgumentException;
-import org.apache.hadoop.ozone.om.ha.OMNodeDetails;
+import org.apache.hadoop.ozone.om.helpers.OMNodeDetails;
 import org.apache.hadoop.ozone.om.ratis.OzoneManagerRatisServer;
 import org.apache.hadoop.test.GenericTestUtils;
 
@@ -156,7 +156,6 @@ public class TestOzoneManagerConfiguration {
     Assert.assertEquals("122.0.0.122", omNode2Addr.getHostString());
     Assert.assertEquals(OMConfigKeys.OZONE_OM_PORT_DEFAULT,
         omNode2Addr.getPort());
-
   }
 
   /**

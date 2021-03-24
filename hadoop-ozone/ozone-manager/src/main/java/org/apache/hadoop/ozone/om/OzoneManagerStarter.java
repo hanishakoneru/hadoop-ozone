@@ -99,6 +99,23 @@ public class OzoneManagerStarter extends GenericCli {
   }
 
   /**
+   * This function implements a sub-command to allow the OM to be
+   * initialized from the command line.
+   */
+  @CommandLine.Command(name = "--bootstrap",
+      customSynopsis = "ozone om [global options] --bootstrap",
+      hidden = false,
+      description = "Initialize if not already initialized and Bootstrap " +
+          "the Ozone Manager",
+      mixinStandardHelpOptions = true,
+      versionProvider = HddsVersionProvider.class)
+  public void bootstrapOM()
+      throws Exception {
+    commonInit();
+    receiver.bootstrap(conf);
+  }
+
+  /**
    * This function should be called by each command to ensure the configuration
    * is set and print the startup banner message.
    */
@@ -131,6 +148,20 @@ public class OzoneManagerStarter extends GenericCli {
     public boolean init(OzoneConfiguration conf) throws IOException,
         AuthenticationException {
       return OzoneManager.omInit(conf);
+    }
+
+    public void bootstrap(OzoneConfiguration conf)
+        throws IOException, AuthenticationException {
+      // Initialize the Ozone Manager, if not already initialized.
+      boolean initialize = OzoneManager.omInit(conf);
+      if (!initialize) {
+        throw new IOException("OM Init failed.");
+      }
+      // Bootstrap the OM
+      OzoneManager om = OzoneManager.createOm(conf,
+          OzoneManager.StartupOption.BOOTSTRAP);
+      om.start();
+      om.join();
     }
   }
 

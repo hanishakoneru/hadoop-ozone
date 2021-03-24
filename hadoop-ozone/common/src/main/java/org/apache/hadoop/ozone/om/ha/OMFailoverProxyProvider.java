@@ -523,7 +523,7 @@ public class OMFailoverProxyProvider implements
    * @param exception
    * @return OMLeaderNotReadyException
    */
-  private static OMLeaderNotReadyException getLeaderNotReadyException(
+  public static OMLeaderNotReadyException getLeaderNotReadyException(
       Exception exception) {
     Throwable cause = exception.getCause();
     if (cause instanceof RemoteException) {

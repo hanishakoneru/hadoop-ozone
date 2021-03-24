@@ -27,10 +27,14 @@ import org.apache.hadoop.ipc.ProtobufHelper;
 import org.apache.hadoop.ipc.ProtobufRpcEngine;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ozone.OzoneConfigKeys;
+import org.apache.hadoop.ozone.om.exceptions.OMLeaderNotReadyException;
 import org.apache.hadoop.ozone.om.exceptions.OMNotLeaderException;
 import org.apache.hadoop.ozone.om.ha.OMFailoverProxyProvider;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapErrorCode;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapOMRequest;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapOMResponse;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -94,6 +98,37 @@ public class Hadoop3OmTransport implements OmTransport {
         throw ProtobufHelper.getRemoteException(e);
       }
       throw new IOException("Could not determine or connect to OM Leader.");
+    }
+  }
+
+  @Override
+  public BootstrapOMResponse bootstrap(BootstrapOMRequest bootstrapOMRequest)
+      throws IOException {
+    try {
+      BootstrapOMResponse response = rpcProxy.bootstrap(NULL_RPC_CONTROLLER,
+          bootstrapOMRequest);
+      return response;
+    } catch (ServiceException e) {
+      OMNotLeaderException notLeaderException =
+          OMFailoverProxyProvider.getNotLeaderException(e);
+      if (notLeaderException != null) {
+        return BootstrapOMResponse.newBuilder()
+            .setSuccess(false)
+            .setErrorCode(BootstrapErrorCode.LEADER_UNDETERMINED)
+            .setErrorMsg(notLeaderException.getMessage())
+            .build();
+      }
+
+      OMLeaderNotReadyException leaderNotReadyException =
+          OMFailoverProxyProvider.getLeaderNotReadyException(e);
+      if (leaderNotReadyException != null) {
+        return BootstrapOMResponse.newBuilder()
+            .setSuccess(false)
+            .setErrorCode(BootstrapErrorCode.LEADER_NOT_READY)
+            .setErrorMsg(notLeaderException.getMessage())
+            .build();
+      }
+      throw ProtobufHelper.getRemoteException(e);
     }
   }
 
