@@ -18,10 +18,9 @@
 package org.apache.hadoop.ozone.om.protocolPB;
 
 import org.apache.hadoop.hdds.annotation.InterfaceAudience;
+import org.apache.hadoop.hdds.annotation.InterfaceStability;
 import org.apache.hadoop.ozone.om.OMConfigKeys;
 import org.apache.hadoop.ipc.ProtocolInfo;
-import org.apache.hadoop.ozone.protocol.proto
-    .OzoneManagerProtocolProtos.OzoneManagerService;
 import org.apache.hadoop.ozone.protocol.proto
     .OzoneManagerProtocolProtos.OzoneManagerInterService;
 import org.apache.hadoop.security.KerberosInfo;
@@ -29,16 +28,16 @@ import org.apache.hadoop.security.token.TokenInfo;
 import org.apache.hadoop.ozone.security.OzoneDelegationTokenSelector;
 
 /**
- * Protocol used to communicate with OM.
+ * Protocol used to communicate between OMs.
  */
 @ProtocolInfo(protocolName =
-    "org.apache.hadoop.ozone.om.protocol.OzoneManagerProtocol",
+    "org.apache.hadoop.ozone.om.protocol.OzoneManagerInterServiceProtocol",
     protocolVersion = 1)
 @KerberosInfo(
     serverPrincipal = OMConfigKeys.OZONE_OM_KERBEROS_PRINCIPAL_KEY)
 @TokenInfo(OzoneDelegationTokenSelector.class)
 @InterfaceAudience.Private
-public interface OzoneManagerProtocolPB
-    extends OzoneManagerService.BlockingInterface,
+@InterfaceStability.Evolving
+public interface InterOzoneManagerProtocolPB extends
     OzoneManagerInterService.BlockingInterface {
 }

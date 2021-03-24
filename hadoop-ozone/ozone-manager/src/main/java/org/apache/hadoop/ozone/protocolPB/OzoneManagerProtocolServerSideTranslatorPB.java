@@ -27,6 +27,7 @@ import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.om.OzoneManager;
 import org.apache.hadoop.ozone.om.exceptions.OMLeaderNotReadyException;
 import org.apache.hadoop.ozone.om.exceptions.OMNotLeaderException;
+import org.apache.hadoop.ozone.om.helpers.OMNodeDetails;
 import org.apache.hadoop.ozone.om.protocolPB.OzoneManagerProtocolPB;
 import org.apache.hadoop.ozone.om.ratis.OzoneManagerDoubleBuffer;
 import org.apache.hadoop.ozone.om.ratis.OzoneManagerRatisServer;
@@ -36,6 +37,9 @@ import org.apache.hadoop.ozone.om.request.OMClientRequest;
 import org.apache.hadoop.ozone.om.response.OMClientResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapErrorCode;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapOMRequest;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.BootstrapOMResponse;
 
 import com.google.protobuf.ProtocolMessageEnum;
 import com.google.protobuf.RpcController;
@@ -118,7 +122,6 @@ public class OzoneManagerProtocolServerSideTranslatorPB implements
   @Override
   public OMResponse submitRequest(RpcController controller,
       OMRequest request) throws ServiceException {
-
     return dispatcher.processRequest(request, this::processRequest,
         request.getCmdType(), request.getTraceID());
   }
@@ -131,20 +134,16 @@ public class OzoneManagerProtocolServerSideTranslatorPB implements
       if (OmUtils.isReadOnly(request)) {
         return submitReadRequestToOM(request);
       } else {
-        raftServerStatus = omRatisServer.checkLeaderStatus();
-        if (raftServerStatus == LEADER_AND_READY) {
-          try {
-            OMClientRequest omClientRequest =
-                OzoneManagerRatisUtils.createClientRequest(request);
-            request = omClientRequest.preExecute(ozoneManager);
-          } catch (IOException ex) {
-            // As some of the preExecute returns error. So handle here.
-            return createErrorResponse(request, ex);
-          }
-          return submitRequestToRatis(request);
-        } else {
-          throw createLeaderErrorException(raftServerStatus);
+        checkLeaderStatus();
+        try {
+          OMClientRequest omClientRequest =
+              OzoneManagerRatisUtils.createClientRequest(request);
+          request = omClientRequest.preExecute(ozoneManager);
+        } catch (IOException ex) {
+          // As some of the preExecute returns error. So handle here.
+          return createErrorResponse(request, ex);
         }
+        return submitRequestToRatis(request);
       }
     } else {
       return submitRequestDirectlyToOM(request);
@@ -184,49 +183,8 @@ public class OzoneManagerProtocolServerSideTranslatorPB implements
 
   private OMResponse submitReadRequestToOM(OMRequest request)
       throws ServiceException {
-    // Check if this OM is the leader.
-    RaftServerStatus raftServerStatus = omRatisServer.checkLeaderStatus();
-    if (raftServerStatus == LEADER_AND_READY) {
-      return handler.handleReadRequest(request);
-    } else {
-      throw createLeaderErrorException(raftServerStatus);
-    }
-  }
-
-  private ServiceException createNotLeaderException() {
-    RaftPeerId raftPeerId = omRatisServer.getRaftPeerId();
-
-    // TODO: Set suggest leaderID. Right now, client is not using suggest
-    // leaderID. Need to fix this.
-
-    OMNotLeaderException notLeaderException =
-        new OMNotLeaderException(raftPeerId);
-
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(notLeaderException.getMessage());
-    }
-
-    return new ServiceException(notLeaderException);
-  }
-
-  private ServiceException createLeaderErrorException(
-      RaftServerStatus raftServerStatus) {
-    if (raftServerStatus == NOT_LEADER) {
-      return createNotLeaderException();
-    } else {
-      return createLeaderNotReadyException();
-    }
-  }
-
-
-  private ServiceException createLeaderNotReadyException() {
-    RaftPeerId raftPeerId = omRatisServer.getRaftPeerId();
-
-    OMLeaderNotReadyException leaderNotReadyException =
-        new OMLeaderNotReadyException(raftPeerId.toString() + " is Leader " +
-            "but not ready to process request");
-
-    return new ServiceException(leaderNotReadyException);
+    checkLeaderStatus();
+    return handler.handleReadRequest(request);
   }
 
   /**
@@ -268,5 +226,80 @@ public class OzoneManagerProtocolServerSideTranslatorPB implements
     if (!isRatisEnabled) {
       ozoneManagerDoubleBuffer.stop();
     }
+  }
+
+  @Override
+  public BootstrapOMResponse bootstrap(RpcController controller,
+      BootstrapOMRequest request) throws ServiceException {
+    if (!isRatisEnabled) {
+      return BootstrapOMResponse.newBuilder()
+          .setSuccess(false)
+          .setErrorCode(BootstrapErrorCode.RATIS_NOT_ENABLED)
+          .setErrorMsg("New OM node cannot be bootstrapped as Ratis " +
+              "is not enabled on existing OM")
+          .build();
+    }
+
+    checkLeaderStatus();
+
+    OMNodeDetails newOmNode = new OMNodeDetails.Builder()
+        .setOMNodeId(request.getNodeId())
+        .setHostAddress(request.getHostAddress())
+        .setRatisPort(request.getRatisPort())
+        .build();
+
+    try {
+      omRatisServer.addOMToRatisRing(newOmNode);
+    } catch (IOException ex) {
+      return BootstrapOMResponse.newBuilder()
+          .setSuccess(false)
+          .setErrorCode(BootstrapErrorCode.RATIS_BOOTSTRAP_ERROR)
+          .setErrorMsg(ex.getMessage())
+          .build();
+    }
+
+    return BootstrapOMResponse.newBuilder()
+        .setSuccess(true)
+        .build();
+  }
+
+  private void checkLeaderStatus() throws ServiceException {
+    RaftServerStatus raftServerStatus = omRatisServer.checkLeaderStatus();
+    switch (raftServerStatus) {
+    case LEADER_AND_READY: return;
+
+    case LEADER_AND_NOT_READY: throw createLeaderNotReadyException();
+
+    case NOT_LEADER: throw createNotLeaderException();
+
+    default: throw new IllegalStateException(
+        "Unknown Ratis Server state: " + raftServerStatus);
+    }
+  }
+
+  private ServiceException createNotLeaderException() {
+    RaftPeerId raftPeerId = omRatisServer.getRaftPeerId();
+
+    // TODO: Set suggest leaderID. Right now, client is not using suggest
+    // leaderID. Need to fix this.
+
+    OMNotLeaderException notLeaderException =
+        new OMNotLeaderException(raftPeerId);
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(notLeaderException.getMessage());
+    }
+
+    return new ServiceException(notLeaderException);
+  }
+
+  private ServiceException createLeaderNotReadyException() {
+    RaftPeerId raftPeerId = omRatisServer.getRaftPeerId();
+
+    OMLeaderNotReadyException leaderNotReadyException =
+        new OMLeaderNotReadyException(raftPeerId.toString() + " is Leader " +
+            "but not ready to process request");
+
+    return new ServiceException(leaderNotReadyException);
   }
 }

@@ -1200,6 +1200,26 @@ message GetS3SecretResponse {
     required S3Secret s3Secret = 2;
 }
 
+enum BootstrapErrorCode {
+    RATIS_NOT_ENABLED = 1;
+    LEADER_UNDETERMINED = 2;
+    LEADER_NOT_READY = 3;
+    RATIS_BOOTSTRAP_ERROR = 4;
+    UNDEFINED_ERROR = 5;
+}
+
+message BootstrapOMRequest {
+    required string nodeId = 1;
+    required string hostAddress = 2;
+    required uint32 ratisPort = 3;
+}
+
+message BootstrapOMResponse {
+    required bool success = 1;
+    optional BootstrapErrorCode errorCode = 2;
+    optional string errorMsg = 3;
+}
+
 /**
   This will be used internally by OM to replicate S3 Secret across quorum of
   OM's.
@@ -1210,10 +1230,19 @@ message UpdateGetS3SecretRequest {
 }
 
 /**
- The OM service that takes care of Ozone namespace.
+ The OM service that takes care of Ozone namespace (OM-Client communication).
 */
 service OzoneManagerService {
     // A client-to-OM RPC to send client requests to OM Ratis server
     rpc submitRequest(OMRequest)
           returns(OMResponse);
+}
+
+/**
+ The OM service for inter OM communication.
+*/
+service OzoneManagerInterService {
+    // RPC request from new OM to existing OM ring to bootstrap itself
+    rpc bootstrap(BootstrapOMRequest)
+    returns(BootstrapOMResponse);
 }
